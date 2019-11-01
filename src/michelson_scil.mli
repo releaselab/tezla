@@ -1,3 +1,9 @@
+type loc = Unknown | Loc of int * int
+
+type ident = string
+
+type decl = ident
+
 type unop = Fst | Snd | Abs | Neg | Not
 
 type binop =
@@ -46,10 +52,10 @@ type typ =
   | T_big_map of comparable_type * typ
 
 type expr =
-  | E_unop of unop * expr
-  | E_binop of binop * expr * expr
+  | E_unop of unop * expr t
+  | E_binop of binop * expr t * expr t
   | E_ident of string
-  | E_cons of expr * expr
+  | E_cons of expr t * expr t
   | E_int of Z.t
   | E_nat of Z.t
   | E_string of string
@@ -61,71 +67,71 @@ type expr =
   | E_contract of string
   | E_unit
   | E_bool of bool
-  | E_pair of expr * expr
-  | E_left of expr
-  | E_right of expr
-  | E_some of expr
+  | E_pair of expr t * expr t
+  | E_left of expr t
+  | E_right of expr t
+  | E_some of expr t
   | E_none
-  | E_list of expr list
-  | E_set of expr list
-  | E_map of (expr * expr) list
-  | E_stmt of stmt
-  | E_mem of expr * expr
-  | E_get of expr * expr
-  | E_update of expr * expr * expr
-  | E_cast of expr
-  | E_concat of expr * expr
-  | E_slice of expr * expr * expr
-  | E_pack of expr
-  | E_unpack of expr
+  | E_list of expr t list
+  | E_set of expr t list
+  | E_map of (expr t * expr t) list
+  | E_stmt of stmt t
+  | E_mem of expr t * expr t
+  | E_get of expr t * expr t
+  | E_update of expr t * expr t * expr t
+  | E_cast of expr t
+  | E_concat of expr t * expr t
+  | E_slice of expr t * expr t * expr t
+  | E_pack of expr t
+  | E_unpack of expr t
   | E_self
-  | E_contract_of_address of expr
-  | E_set_delegate of expr
-  | E_create_account of expr * expr * expr * expr
-  | E_implicit_account of expr
+  | E_contract_of_address of expr t
+  | E_set_delegate of expr t
+  | E_create_account of expr t * expr t * expr t * expr t
+  | E_implicit_account of expr t
   | E_now
   | E_amount
   | E_balance
-  | E_check_signature of expr * expr * expr
-  | E_blake2b of expr
-  | E_sha256 of expr
-  | E_sha512 of expr
-  | E_hash_key of expr
+  | E_check_signature of expr t * expr t * expr t
+  | E_blake2b of expr t
+  | E_sha256 of expr t
+  | E_sha512 of expr t
+  | E_hash_key of expr t
   | E_steps_to_quota
   | E_source
   | E_sender
-  | E_address_of_contact of expr
-  | E_is_none of expr
-  | E_lift_option of expr
-  | E_is_left of expr
-  | E_lift_or of expr
-  | E_is_list_empty of expr
-  | E_list_hd of expr
-  | E_list_tl of expr
-  | E_size of expr
+  | E_address_of_contact of expr t
+  | E_is_none of expr t
+  | E_lift_option of expr t
+  | E_is_left of expr t
+  | E_lift_or of expr t
+  | E_is_list_empty of expr t
+  | E_list_hd of expr t
+  | E_list_tl of expr t
+  | E_size of expr t
 
 and stmt =
-  | S_seq of stmt * stmt
+  | S_seq of stmt t * stmt t
   | S_var_decl of string
-  | S_assign of string * expr
+  | S_assign of string * expr t
   | S_skip
-  | S_if of expr * stmt * stmt
-  | S_while of expr * stmt
-  | S_if_cons of stmt * stmt
+  | S_if of expr t * stmt t * stmt t
+  | S_while of expr t * stmt t
+  | S_if_cons of stmt t * stmt t
   | S_size
   | S_empty_set of comparable_type
   | S_empty_map of comparable_type * typ
-  | S_map of stmt
-  | S_iter of stmt
+  | S_map of stmt t
+  | S_iter of stmt t
   | S_mem
   | S_get
   | S_update
-  | S_loop of stmt
-  | S_loop_left of stmt
-  | S_lambda of typ * typ * stmt
+  | S_loop of stmt t
+  | S_loop_left of stmt t
+  | S_lambda of typ * typ * stmt t
   | S_exec
-  | S_dip of stmt
-  | S_failwith of expr
+  | S_dip of stmt t
+  | S_failwith of expr t
   | S_cast
   | S_rename
   | S_concat
@@ -156,7 +162,7 @@ and stmt =
   | S_transfer_tokens
   | S_set_delegate
   | S_create_account
-  | S_create_contract of stmt
+  | S_create_contract of stmt t
   | S_implicit_account
   | S_now
   | S_amount
@@ -171,3 +177,18 @@ and stmt =
   | S_sender
   | S_address
   | S_todo
+
+and _ node_data =
+  | Stmt : stmt -> stmt node_data
+  | Decl : decl -> decl node_data
+  | Expr : expr -> expr node_data
+
+and 'a t = {id: int; loc: loc; data: 'a node_data}
+
+val create : ?loc:loc -> 'a node_data -> 'a t
+
+val get_node_data : 'a t -> 'a
+
+val to_string : 'a t -> string
+
+type program = stmt t

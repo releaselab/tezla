@@ -1,0 +1,5 @@
+(library
+ (name michelscil_cfg)
+ (public_name michelscil_cfg)
+ (libraries michelscil batteries ocamlgraph)
+ (modules_without_implementation sig))

@@ -15,4 +15,13 @@
  (synopsis "An instantiation of SCIL for the Michelson language")
  (depends
   (dune :build)
-  (zarith (> 1.0))))
+  (zarith :dev)))
+
+(package
+ (name michelscil_cfg)
+ (synopsis "An CFG generator for MichelSCIL programs")
+ (depends
+  (dune :build)
+  (michelscil :dev)
+  (ocamlgraph :dev)
+  (batteries :dev)))

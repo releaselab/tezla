@@ -126,3 +126,5 @@ and data =
   | D_set of data list
   | D_map of (data * data) list
   | D_instruction of instruction
+
+type program = {param: typ; storage: typ; return: typ; code: instruction}
