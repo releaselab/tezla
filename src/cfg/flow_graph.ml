@@ -1,23 +1,22 @@
 open Michelscil
-module N = Cfg_node
 
 module Common = struct
-  type program = Michelson_scil.stmt list
+  type program = Michelson.instruction
 
-  type vertex = N.stmt N.t
+  type vertex = Morley.stmt Morley.t
 
-  type expr = N.expr
+  type expr = Morley.expr
 
   type edge_label = Normal | If_true | If_false
 
   module V = struct
     type t = vertex
 
-    let compare x y = compare x.N.id y.N.id
+    let compare x y = compare x.Morley.id y.Morley.id
 
-    let hash x = Hashtbl.hash x.N.id
+    let hash x = Hashtbl.hash x.Morley.id
 
-    let equal x y = x.N.id = y.N.id
+    let equal x y = x.Morley.id = y.Morley.id
   end
 
   module E = struct
@@ -43,7 +42,7 @@ module Common = struct
   struct
     include G
 
-    let vertex_name v = string_of_int v.N.id
+    let vertex_name v = string_of_int v.Morley.id
 
     let graph_attributes _ = []
 
@@ -59,9 +58,9 @@ module Common = struct
   end
 
   module Wrapper = struct
-    let inflow g n = G.pred g n |> List.map (fun n -> n.N.id)
+    let inflow g n = G.pred g n |> List.map (fun n -> n.Morley.id)
 
-    let outflow g n = G.succ g n |> List.map (fun n -> n.N.id)
+    let outflow g n = G.succ g n |> List.map (fun n -> n.Morley.id)
 
     let is_extremal exts l = List.mem l exts
 
@@ -74,10 +73,10 @@ module Common = struct
     let dot_output _ g p f =
       let module Helper = struct
         let label_to_dot_label n =
-          Printf.sprintf "[%s]^%d" (N.to_string n) n.N.id
+          Printf.sprintf "[%s]^%d" (Morley.to_string n) n.Morley.id
 
         let label_to_subgraph n =
-          let fid = Hashtbl.find p n.N.id in
+          let fid = Hashtbl.find p n.Morley.id in
           { Graph.Graphviz.DotAttributes.sg_name= fid
           ; sg_attributes= [`Label fid]
           ; sg_parent= None }
@@ -98,9 +97,7 @@ module Common = struct
   end
 end
 
-module Make_cfg
-    (F : Sig.Flow with type block = N.stmt and type vertex = Common.vertex) =
-struct
+module Cfg = struct
   open Batteries
   include Common
 
@@ -133,8 +130,8 @@ struct
   let is_extremalR g = Wrapper.is_extremal g.extremalsR
 
   let add t func_id v =
-    let () = Hashtbl.add t.blocks v.N.id v in
-    Wrapper.add t.flow t.functions func_id v v.N.id
+    let () = Hashtbl.add t.blocks v.Morley.id v in
+    Wrapper.add t.flow t.functions func_id v v.Morley.id
 
   let connect {flow= g; _} ?(label = E.default) = Wrapper.connect g label
 
@@ -152,7 +149,7 @@ struct
     Wrapper.dot_output b g p
 
   let display_with_gv {blocks= b; flow= g; functions= p; _} =
-    Wrapper.display_with_gv b g p 
+    Wrapper.display_with_gv b g p
 
   let show = display_with_gv
 
@@ -161,51 +158,24 @@ struct
     let graph = create () in
     let pBlocks = Hashtbl.create 10 in
     let env = Env.empty_env in
-    let _, p_scil = Converter.convert env p in
+    let p_scil, _ = Converter.convert env p in
     let add_edge (i, j) = connect graph i j in
-    let rec aux = function
-      | h_1 :: h_2 :: t ->
-          let h_1_data = Sl.get_node_data h_1 in
-          let n_1 = N.create ~loc:h_1.Sl.loc (Decl h_1_data) in
-          let n_1' = N.create ~loc:h_1.Sl.loc (Stmt (Cfg_var_decl n_1)) in
-          let h_2_data = Sl.get_node_data h_2 in
-          let n_2 = N.create ~loc:h_2.Sl.loc (Decl h_2_data) in
-          let n_2' = N.create ~loc:h_2.Sl.loc (Stmt (Cfg_var_decl n_2)) in
-          let () = add_edge (n_1', n_2') in
-          aux (h_2 :: t)
-      | [h] ->
-          let h_data = Sl.get_node_data h in
-          let n = N.create ~loc:h.Sl.loc (Decl h_data) in
-          let n' = N.create ~loc:h.Sl.loc (Stmt (Cfg_var_decl n)) in
-          Some n'
-      | [] ->
-          None
-    in
-    let last_decl = aux global_decls in
     let () =
-      List.iter
-        (fun (f, _, b) ->
-          let {F.correspondence= ht; initial; nodes; flow; _} = F.flow b in
-          let () = Set.iter (fun b -> add graph f b) nodes in
-          let init = Hashtbl.find ht (F.init b) in
-          let () = extremal graph init.id in
-          let finals = Set.map (Hashtbl.find ht) (F.final b) in
-          let () = Set.iter (fun n -> extremal graph n.N.id) finals in
-          let () = Hashtbl.replace pBlocks f nodes in
-          let () =
-            match last_decl with
-            | Some l ->
-                Set.iter (fun i -> add_edge (l, i)) initial
-            | None ->
-                ()
-          in
-          Set.iter add_edge flow)
-        funcs
+      let open Flow in
+      let open Morley in
+      let {nodes; flow; _} = flow p_scil in
+      let () = Set.iter (fun b -> add graph "main" b) nodes in
+      let init = init p_scil in
+      let () = extremal graph init.id in
+      let finals = final p_scil in
+      let () = Set.iter (fun n -> extremal graph n.id) finals in
+      let () = Hashtbl.replace pBlocks "main" nodes in
+      Set.iter add_edge flow
     in
     graph
 end
 
-module Make_inter_cfg
+(* module Make_inter_cfg
     (F : Sig.Flow
            with type block = Cfg_node.stmt
             and type vertex = Common.vertex) =
@@ -271,4 +241,4 @@ struct
   let show = display_with_gv
 
   let generate_from_program _ = (* TODO: *) create ()
-end
+end *)

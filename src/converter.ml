@@ -1,18 +1,19 @@
 open Env
 
 let string_to_expr s =
-  let open Michelson_scil in
+  let open Morley in
   create (Expr (E_ident s))
 
 let join_envs_if s_t env_t s_f env_f =
-  let open Michelson_scil in
+  let open Morley in
   let env = join string_to_expr env_t env_f in
   let decls =
     List.fold_left
       (fun acc n ->
         match get_node_data n with
         | E_ident v ->
-            create (Stmt (S_seq (acc, create (Stmt (S_var_decl v)))))
+            let decl = create (Decl v) in
+            create (Stmt (S_seq (acc, create (Stmt (S_var_decl decl)))))
         | _ ->
             assert false)
       (create (Stmt S_skip)) env
@@ -46,14 +47,15 @@ let join_envs_if s_t env_t s_f env_f =
   (env, s_t', s_f')
 
 let join_envs_while s env =
-  let open Michelson_scil in
+  let open Morley in
   let env' = join string_to_expr env env in
   let decls =
     List.fold_left
       (fun acc n ->
         match get_node_data n with
         | E_ident v ->
-            create (Stmt (S_seq (acc, create (Stmt (S_var_decl v)))))
+            let decl = create (Decl v) in
+            create (Stmt (S_seq (acc, create (Stmt (S_var_decl decl)))))
         | _ ->
             assert false)
       (create (Stmt S_skip)) env
@@ -72,8 +74,8 @@ let join_envs_while s env =
   (env', s')
 
 let rec data_to_expr d =
-  let open Michelson_ast in
-  let open Michelson_scil in
+  let open Michelson in
+  let open Morley in
   let e =
     match d with
     | D_int i ->
@@ -121,8 +123,8 @@ let rec data_to_expr d =
   create (Expr e)
 
 and convert env =
-  let open Michelson_ast in
-  let open Michelson_scil in
+  let open Michelson in
+  let open Morley in
   function
   | I_seq (i_1, i_2) ->
       let s_1, env_1 = convert env i_1 in

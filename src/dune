@@ -3,4 +3,4 @@
     (public_name michelscil)
     (libraries zarith batteries)
     (synopsis "Michelson front end for Softcheck.")
-    (modules_without_implementation michelson_ast))
+    (modules_without_implementation michelson))

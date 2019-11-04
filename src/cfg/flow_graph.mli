@@ -1,15 +1,15 @@
-module Make_cfg
-    (F : Sig.Flow
-           with type block = Cfg_node.stmt
-            and type vertex = Cfg_node.stmt Cfg_node.t) :
-  Sig.Flow_graph
-    with type vertex = Cfg_node.stmt Cfg_node.t
-     and type expr = Cfg_node.expr
+open Michelscil
 
-module Make_inter_cfg
+module Cfg :
+  Sig.Flow_graph
+    with type vertex = Morley.stmt Morley.t
+     and type expr = Morley.expr
+     and type program = Michelson.instruction
+
+(* module Make_inter_cfg
     (F : Sig.Flow
-           with type block = Cfg_node.stmt
-            and type vertex = Cfg_node.stmt Cfg_node.t) :
+           with type block = Morley.stmt
+            and type vertex = Morley.stmt Morley.t) :
   Sig.Inter_flow_graph
-    with type vertex = Cfg_node.stmt Cfg_node.t
-     and type expr = Cfg_node.expr
+    with type vertex = Morley.stmt Morley.t
+     and type expr = Morley.expr *)

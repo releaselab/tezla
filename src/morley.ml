@@ -121,7 +121,7 @@ type expr =
 
 and stmt =
   | S_seq of stmt t * stmt t
-  | S_var_decl of string
+  | S_var_decl of decl t
   | S_assign of string * expr t
   | S_skip
   | S_if of expr t * stmt t * stmt t
