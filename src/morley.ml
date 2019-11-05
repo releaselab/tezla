@@ -7,8 +7,6 @@ open Batteries
     strout l ;
   BatIO.close_out strout *)
 
-type loc = Unknown | Loc of int * int
-
 type ident = string
 
 type decl = ident
@@ -192,7 +190,7 @@ and _ node_data =
   | Decl : decl -> decl node_data
   | Expr : expr -> expr node_data
 
-and 'a t = {id: int; loc: loc; data: 'a node_data}
+and 'a t = {id: int; loc: Location.t; data: 'a node_data}
 
 let counter = ref (-1)
 
@@ -200,7 +198,7 @@ let next_counter () =
   let () = counter := !counter + 1 in
   !counter
 
-let create ?(loc = Unknown) data = {id= next_counter (); loc; data}
+let create ?(loc = Location.Unknown) data = {id= next_counter (); loc; data}
 
 let get_node_data : type a. a t -> a =
  fun n -> match n.data with Stmt s -> s | Decl d -> d | Expr e -> e

@@ -4,7 +4,7 @@ module Cfg :
   Sig.Flow_graph
     with type vertex = Morley.stmt Morley.t
      and type expr = Morley.expr
-     and type program = Michelson.instruction
+     and type program = Michelson.program
 
 (* module Make_inter_cfg
     (F : Sig.Flow

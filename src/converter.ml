@@ -77,7 +77,7 @@ let rec data_to_expr d =
   let open Michelson in
   let open Morley in
   let e =
-    match d with
+    match Michelson.get_node_data d with
     | D_int i ->
         E_int i
     | D_nat i ->
@@ -120,319 +120,343 @@ let rec data_to_expr d =
         let s, _ = convert empty_env x in
         E_stmt s
   in
-  create (Expr e)
+  create ~loc:d.loc (Expr e)
 
-and convert env =
+and convert env i =
   let open Michelson in
   let open Morley in
-  function
+  let create_stmt_node loc s = create ~loc (Stmt s) in
+  let create_expr_node ?(loc = Location.Unknown) e = create ~loc (Expr e) in
+  match Michelson.get_node_data i with
   | I_seq (i_1, i_2) ->
       let s_1, env_1 = convert env i_1 in
       let s_2, env_2 = convert env_1 i_2 in
-      (create (Stmt (S_seq (s_1, s_2))), env_2)
+      (create_stmt_node i.loc (S_seq (s_1, s_2)), env_2)
   | I_drop ->
-      (create (Stmt S_skip), drop env)
+      (create_stmt_node i.loc S_skip, drop env)
   | I_dup ->
       let x = peek env in
-      (create (Stmt S_skip), push x env)
+      (create_stmt_node i.loc S_skip, push x env)
   | I_swap ->
       let env' = swap env in
-      (create (Stmt S_skip), env')
+      (create_stmt_node i.loc S_skip, env')
   | I_push (_, x) ->
-      (create (Stmt S_skip), push (data_to_expr x) env)
+      (create_stmt_node i.loc S_skip, push (data_to_expr x) env)
   | I_some ->
       let x, env' = pop env in
-      (create (Stmt S_skip), push (create (Expr (E_some x))) env')
+      (create_stmt_node i.loc S_skip, push (create_expr_node (E_some x)) env')
   | I_none _ ->
-      (create (Stmt S_skip), push (create (Expr E_none)) env)
+      (create_stmt_node i.loc S_skip, push (create_expr_node E_none) env)
   | I_unit ->
-      (create (Stmt S_skip), push (create (Expr E_unit)) env)
+      (create_stmt_node i.loc S_skip, push (create_expr_node E_unit) env)
   | I_if_none (i_t, i_f) ->
       let x, env' = pop env in
-      let e = create (Expr (E_is_none x)) in
+      let e = create_expr_node (E_is_none x) in
       let s_t, env_t = convert env' i_t in
       let s_f, env_f =
-        convert (push (create (Expr (E_lift_option x))) env') i_f
+        convert (push (create_expr_node (E_lift_option x)) env') i_f
       in
       let env', s_t', s_f' = join_envs_if s_t env_t s_f env_f in
-      (create (Stmt (S_if (e, s_t', s_f'))), env')
+      (create_stmt_node i.loc (S_if (e, s_t', s_f')), env')
   | I_pair ->
       let x_1, env' = pop env in
       let x_2, env' = pop env' in
-      (create (Stmt S_skip), push (create (Expr (E_pair (x_1, x_2)))) env')
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_pair (x_1, x_2))) env' )
   | I_car ->
       let x, env' = pop env in
-      (create (Stmt S_skip), push (create (Expr (E_unop (Fst, x)))) env')
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_unop (Fst, x))) env' )
   | I_cdr ->
       let x, env' = pop env in
-      (create (Stmt S_skip), push (create (Expr (E_unop (Snd, x)))) env')
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_unop (Snd, x))) env' )
   | I_left _ ->
       let x, env' = pop env in
-      (create (Stmt S_skip), push (create (Expr (E_left x))) env')
+      (create_stmt_node i.loc S_skip, push (create_expr_node (E_left x)) env')
   | I_right _ ->
       let x, env' = pop env in
-      (create (Stmt S_skip), push (create (Expr (E_right x))) env')
+      (create_stmt_node i.loc S_skip, push (create_expr_node (E_right x)) env')
   | I_if_left (i_t, i_f) ->
       let x, env' = pop env in
-      let c = create (Expr (E_is_left x)) in
-      let e = create (Expr (E_lift_or x)) in
+      let c = create_expr_node (E_is_left x) in
+      let e = create_expr_node (E_lift_or x) in
       let env' = push e env' in
       let s_t, env_t = convert env' i_t in
       let s_f, env_f = convert env' i_f in
       let env', s_t', s_f' = join_envs_if s_t env_t s_f env_f in
-      (create (Stmt (S_if (c, s_t', s_f'))), env')
+      (create_stmt_node i.loc (S_if (c, s_t', s_f')), env')
   | I_if_right (i_t, i_f) ->
       let x, env' = pop env in
-      let c = create (Expr (E_unop (Not, create (Expr (E_is_left x))))) in
-      let e = create (Expr (E_lift_or x)) in
+      let c =
+        create_expr_node (E_unop (Not, create_expr_node (E_is_left x)))
+      in
+      let e = create_expr_node (E_lift_or x) in
       let env' = push e env' in
       let s_t, env_t = convert env' i_t in
       let s_f, env_f = convert env' i_f in
       let env', s_t', s_f' = join_envs_if s_t env_t s_f env_f in
-      (create (Stmt (S_if (c, s_t', s_f'))), env')
+      (create_stmt_node i.loc (S_if (c, s_t', s_f')), env')
   | I_nil _ ->
-      (create (Stmt S_skip), push (create (Expr (E_list []))) env)
+      (create_stmt_node i.loc S_skip, push (create_expr_node (E_list [])) env)
   | I_cons ->
       let x_1, env' = pop env in
       let x_2, env' = pop env' in
-      (create (Stmt S_skip), push (create (Expr (E_cons (x_1, x_2)))) env')
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_cons (x_1, x_2))) env' )
   | I_if_cons (i_t, i_f) ->
       let x, env_t = pop env in
-      let c = create (Expr (E_is_list_empty x)) in
+      let c = create_expr_node (E_is_list_empty x) in
       let env_f =
         push
-          (create (Expr (E_list_hd x)))
-          (push (create (Expr (E_list_tl x))) env_t)
+          (create_expr_node (E_list_hd x))
+          (push (create_expr_node (E_list_tl x)) env_t)
       in
       let s_t, env_t' = convert env_t i_t in
       let s_f, env_f' = convert env_f i_f in
       let env', s_t', s_f' = join_envs_if s_t env_t' s_f env_f' in
-      (create (Stmt (S_if (c, s_t', s_f'))), env')
+      (create_stmt_node i.loc (S_if (c, s_t', s_f')), env')
   | I_size ->
       let x, env' = pop env in
-      (create (Stmt S_skip), push (create (Expr (E_size x))) env')
+      (create_stmt_node i.loc S_skip, push (create_expr_node (E_size x)) env')
   | I_empty_set _ ->
-      (create (Stmt S_skip), push (create (Expr (E_set []))) env)
+      (create_stmt_node i.loc S_skip, push (create_expr_node (E_set [])) env)
   | I_empty_map _ ->
-      (create (Stmt S_skip), push (create (Expr (E_map []))) env)
+      (create_stmt_node i.loc S_skip, push (create_expr_node (E_map [])) env)
   | I_map i ->
       let _ = convert empty_env i in
-      (create (Stmt S_todo), env)
+      (create_stmt_node i.loc S_todo, env)
   | I_iter _ ->
-      (create (Stmt S_todo), env)
+      (create_stmt_node i.loc S_todo, env)
   | I_mem ->
       let elt, env' = pop env in
       let set, env' = pop env' in
-      (create (Stmt S_skip), push (create (Expr (E_mem (elt, set)))) env')
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_mem (elt, set))) env' )
   | I_get ->
       let key, env' = pop env in
       let map, env' = pop env' in
-      (create (Stmt S_skip), push (create (Expr (E_get (key, map)))) env')
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_get (key, map))) env' )
   | I_update ->
       let key, env' = pop env in
       let value, env' = pop env' in
       let map, env' = pop env' in
-      ( create (Stmt S_skip)
-      , push (create (Expr (E_update (key, value, map)))) env' )
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_update (key, value, map))) env' )
   | I_if (i_t, i_f) ->
       let c, env' = pop env in
       let s_t, env_t' = convert env' i_t in
       let s_f, env_f' = convert env' i_f in
       let env', s_t', s_f' = join_envs_if s_t env_t' s_f env_f' in
-      (create (Stmt (S_if (c, s_t', s_f'))), env')
+      (create_stmt_node i.loc (S_if (c, s_t', s_f')), env')
   | I_loop i ->
       let c, env' = pop env in
       let s, env' = convert env' i in
       let env', s' = join_envs_while s env' in
-      (create (Stmt (S_while (c, s'))), env')
+      (create_stmt_node i.loc (S_while (c, s')), env')
   | I_loop_left i ->
       let x, env' = pop env in
-      let c = create (Expr (E_is_left x)) in
-      let e = create (Expr (E_lift_or x)) in
+      let c = create_expr_node (E_is_left x) in
+      let e = create_expr_node (E_lift_or x) in
       let s, env' = convert (push e env') i in
       let x', env' = pop env' in
-      let e' = create (Expr (E_lift_or x')) in
+      let e' = create_expr_node (E_lift_or x') in
       let env' = push e' env' in
       let env', s' = join_envs_while s env' in
-      (create (Stmt (S_while (c, s'))), env')
+      (create_stmt_node i.loc (S_while (c, s')), env')
   | I_lambda (_, _, i) ->
       let s, _ = convert empty_env i in
-      (create (Stmt S_skip), push (create (Expr (E_stmt s))) env)
+      (create_stmt_node i.loc S_skip, push (create_expr_node (E_stmt s)) env)
   | I_exec ->
-      (create (Stmt S_todo), env)
+      (create_stmt_node i.loc S_todo, env)
   | I_dip i ->
       let x, env' = pop env in
       let s, env' = convert env' i in
       (s, push x env')
   | I_failwith _ ->
-      (create (Stmt S_todo), env)
+      (create_stmt_node i.loc S_todo, env)
   | I_cast ->
-      (create (Stmt S_todo), env)
+      (create_stmt_node i.loc S_todo, env)
   | I_rename ->
-      (create (Stmt S_todo), env)
+      (create_stmt_node i.loc S_todo, env)
   | I_concat ->
       let s, env' = pop env in
       let t, env' = pop env' in
-      (create (Stmt S_skip), push (create (Expr (E_concat (s, t)))) env')
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_concat (s, t))) env' )
   | I_slice ->
       let offset, env' = pop env in
       let length, env' = pop env' in
       let x, env' = pop env' in
-      ( create (Stmt S_skip)
-      , push (create (Expr (E_slice (offset, length, x)))) env' )
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_slice (offset, length, x))) env' )
   | I_pack ->
       let x, env' = pop env in
-      (create (Stmt S_skip), push (create (Expr (E_pack x))) env')
+      (create_stmt_node i.loc S_skip, push (create_expr_node (E_pack x)) env')
   | I_unpack ->
       let x, env' = pop env in
-      (create (Stmt S_skip), push (create (Expr (E_unpack x))) env')
+      (create_stmt_node i.loc S_skip, push (create_expr_node (E_unpack x)) env')
   | I_add ->
       let x_1, env' = pop env in
       let x_2, env' = pop env' in
-      ( create (Stmt S_skip)
-      , push (create (Expr (E_binop (Add, x_1, x_2)))) env' )
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_binop (Add, x_1, x_2))) env' )
   | I_sub ->
       let x_1, env' = pop env in
       let x_2, env' = pop env' in
-      ( create (Stmt S_skip)
-      , push (create (Expr (E_binop (Sub, x_1, x_2)))) env' )
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_binop (Sub, x_1, x_2))) env' )
   | I_mul ->
       let x_1, env' = pop env in
       let x_2, env' = pop env' in
-      ( create (Stmt S_skip)
-      , push (create (Expr (E_binop (Mul, x_1, x_2)))) env' )
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_binop (Mul, x_1, x_2))) env' )
   | I_ediv ->
       let x_1, env' = pop env in
       let x_2, env' = pop env' in
-      ( create (Stmt S_skip)
-      , push (create (Expr (E_binop (Div, x_1, x_2)))) env' )
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_binop (Div, x_1, x_2))) env' )
   | I_abs ->
       let x, env' = pop env in
-      (create (Stmt S_skip), push (create (Expr (E_unop (Abs, x)))) env')
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_unop (Abs, x))) env' )
   | I_neg ->
       let x, env' = pop env in
-      (create (Stmt S_skip), push (create (Expr (E_unop (Neg, x)))) env')
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_unop (Neg, x))) env' )
   | I_lsl ->
       let x_1, env' = pop env in
       let x_2, env' = pop env' in
-      ( create (Stmt S_skip)
-      , push (create (Expr (E_binop (ShiftL, x_1, x_2)))) env' )
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_binop (ShiftL, x_1, x_2))) env' )
   | I_lsr ->
       let x_1, env' = pop env in
       let x_2, env' = pop env' in
-      ( create (Stmt S_skip)
-      , push (create (Expr (E_binop (ShiftR, x_1, x_2)))) env' )
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_binop (ShiftR, x_1, x_2))) env' )
   | I_or ->
       let x_1, env' = pop env in
       let x_2, env' = pop env' in
-      (create (Stmt S_skip), push (create (Expr (E_binop (Or, x_1, x_2)))) env')
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_binop (Or, x_1, x_2))) env' )
   | I_and ->
       let x_1, env' = pop env in
       let x_2, env' = pop env' in
-      ( create (Stmt S_skip)
-      , push (create (Expr (E_binop (And, x_1, x_2)))) env' )
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_binop (And, x_1, x_2))) env' )
   | I_xor ->
       let x_1, env' = pop env in
       let x_2, env' = pop env' in
-      ( create (Stmt S_skip)
-      , push (create (Expr (E_binop (Xor, x_1, x_2)))) env' )
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_binop (Xor, x_1, x_2))) env' )
   | I_not ->
       let x, env' = pop env in
-      (create (Stmt S_skip), push (create (Expr (E_unop (Not, x)))) env')
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_unop (Not, x))) env' )
   | I_compare ->
       let x_1, env' = pop env in
       let x_2, env' = pop env' in
-      ( create (Stmt S_skip)
-      , push (create (Expr (E_binop (Compare, x_1, x_2)))) env' )
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_binop (Compare, x_1, x_2))) env' )
   | I_eq ->
       let x_1, env' = pop env in
       let x_2, env' = pop env' in
-      (create (Stmt S_skip), push (create (Expr (E_binop (Eq, x_1, x_2)))) env')
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_binop (Eq, x_1, x_2))) env' )
   | I_neq ->
       let x_1, env' = pop env in
       let x_2, env' = pop env' in
-      ( create (Stmt S_skip)
-      , push (create (Expr (E_binop (Neq, x_1, x_2)))) env' )
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_binop (Neq, x_1, x_2))) env' )
   | I_lt ->
       let x_1, env' = pop env in
       let x_2, env' = pop env' in
-      (create (Stmt S_skip), push (create (Expr (E_binop (Lt, x_1, x_2)))) env')
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_binop (Lt, x_1, x_2))) env' )
   | I_gt ->
       let x_1, env' = pop env in
       let x_2, env' = pop env' in
-      (create (Stmt S_skip), push (create (Expr (E_binop (Gt, x_1, x_2)))) env')
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_binop (Gt, x_1, x_2))) env' )
   | I_le ->
       let x_1, env' = pop env in
       let x_2, env' = pop env' in
-      ( create (Stmt S_skip)
-      , push (create (Expr (E_binop (Leq, x_1, x_2)))) env' )
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_binop (Leq, x_1, x_2))) env' )
   | I_ge ->
       let x_1, env' = pop env in
       let x_2, env' = pop env' in
-      ( create (Stmt S_skip)
-      , push (create (Expr (E_binop (Geq, x_1, x_2)))) env' )
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_binop (Geq, x_1, x_2))) env' )
   | I_self ->
-      (create (Stmt S_skip), push (create (Expr E_self)) env)
+      (create_stmt_node i.loc S_skip, push (create_expr_node E_self) env)
   | I_contract _ ->
       let x, env' = pop env in
-      ( create (Stmt S_skip)
-      , push (create (Expr (E_contract_of_address x))) env' )
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_contract_of_address x)) env' )
   | I_transfer_tokens ->
       (* let (x,_), env' = pop env in
       let (amount,_), env' = pop env' in
       let (contract,_), env' = pop env' in
-      (create (Stmt (S_skip)), push (E_set_delegate x) env') *)
-      (create (Stmt S_todo), env)
+      (create_stmt_node (S_skip), push (E_set_delegate x) env') *)
+      (create_stmt_node i.loc S_todo, env)
   | I_set_delegate ->
       (* let (x,_), env' = pop env in
-      (create (Stmt (S_skip)), push (E_set_delegate x) env') *)
-      (create (Stmt S_todo), env)
+      (create_stmt_node (S_skip), push (E_set_delegate x) env') *)
+      (create_stmt_node i.loc S_todo, env)
   | I_create_account ->
       let manager, env' = pop env in
       let delegate, env' = pop env' in
       let delegatable, env' = pop env' in
       let amount, env' = pop env' in
-      ( create (Stmt S_skip)
+      ( create_stmt_node i.loc S_skip
       , push
           (create
              (Expr (E_create_account (manager, delegate, delegatable, amount))))
           env' )
   | I_create_contract _ ->
-      (create (Stmt S_todo), env)
+      (create_stmt_node i.loc S_todo, env)
   | I_implicit_account ->
       let x, env' = pop env in
-      (create (Stmt S_skip), push (create (Expr (E_implicit_account x))) env')
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_implicit_account x)) env' )
   | I_now ->
-      (create (Stmt S_skip), push (create (Expr E_now)) env)
+      (create_stmt_node i.loc S_skip, push (create_expr_node E_now) env)
   | I_amount ->
-      (create (Stmt S_skip), push (create (Expr E_amount)) env)
+      (create_stmt_node i.loc S_skip, push (create_expr_node E_amount) env)
   | I_balance ->
-      (create (Stmt S_skip), push (create (Expr E_balance)) env)
+      (create_stmt_node i.loc S_skip, push (create_expr_node E_balance) env)
   | I_check_signature ->
       let key, env' = pop env in
       let signature, env' = pop env' in
       let bytes, env' = pop env' in
-      ( create (Stmt S_skip)
-      , push (create (Expr (E_check_signature (key, signature, bytes)))) env'
-      )
+      ( create_stmt_node i.loc S_skip
+      , push
+          (create_expr_node (E_check_signature (key, signature, bytes)))
+          env' )
   | I_blake2b ->
       let x, env' = pop env in
-      (create (Stmt S_skip), push (create (Expr (E_blake2b x))) env')
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_blake2b x)) env' )
   | I_sha256 ->
       let x, env' = pop env in
-      (create (Stmt S_skip), push (create (Expr (E_sha256 x))) env')
+      (create_stmt_node i.loc S_skip, push (create_expr_node (E_sha256 x)) env')
   | I_sha512 ->
       let x, env' = pop env in
-      (create (Stmt S_skip), push (create (Expr (E_sha512 x))) env')
+      (create_stmt_node i.loc S_skip, push (create_expr_node (E_sha512 x)) env')
   | I_hash_key ->
       let x, env' = pop env in
-      (create (Stmt S_skip), push (create (Expr (E_hash_key x))) env')
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_hash_key x)) env' )
   | I_steps_to_quota ->
-      (create (Stmt S_skip), push (create (Expr E_steps_to_quota)) env)
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node E_steps_to_quota) env )
   | I_source ->
-      (create (Stmt S_skip), push (create (Expr E_source)) env)
+      (create_stmt_node i.loc S_skip, push (create_expr_node E_source) env)
   | I_sender ->
-      (create (Stmt S_skip), push (create (Expr E_sender)) env)
+      (create_stmt_node i.loc S_skip, push (create_expr_node E_sender) env)
   | I_address ->
       let x, env' = pop env in
-      (create (Stmt S_skip), push (create (Expr (E_address_of_contact x))) env')
+      ( create_stmt_node i.loc S_skip
+      , push (create_expr_node (E_address_of_contact x)) env' )

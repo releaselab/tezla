@@ -1,5 +1,3 @@
-type loc = Unknown | Loc of int * int
-
 type ident = string
 
 type decl = ident
@@ -183,9 +181,9 @@ and _ node_data =
   | Decl : decl -> decl node_data
   | Expr : expr -> expr node_data
 
-and 'a t = {id: int; loc: loc; data: 'a node_data}
+and 'a t = {id: int; loc: Location.t; data: 'a node_data}
 
-val create : ?loc:loc -> 'a node_data -> 'a t
+val create : ?loc:Location.t -> 'a node_data -> 'a t
 
 val get_node_data : 'a t -> 'a
 

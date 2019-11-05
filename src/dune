@@ -2,5 +2,4 @@
     (name michelscil)
     (public_name michelscil)
     (libraries zarith batteries)
-    (synopsis "Michelson front end for Softcheck.")
-    (modules_without_implementation michelson))
+    (synopsis "Michelson front end for Softcheck."))

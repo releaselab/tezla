@@ -1,7 +1,7 @@
 open Michelscil
 
 module Common = struct
-  type program = Michelson.instruction
+  type program = Michelson.program
 
   type vertex = Morley.stmt Morley.t
 
@@ -158,7 +158,7 @@ module Cfg = struct
     let graph = create () in
     let pBlocks = Hashtbl.create 10 in
     let env = Env.empty_env in
-    let p_scil, _ = Converter.convert env p in
+    let p_scil, _ = Converter.convert env p.Michelscil.Michelson.code in
     let add_edge (i, j) = connect graph i j in
     let () =
       let open Flow in

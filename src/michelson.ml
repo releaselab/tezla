@@ -135,7 +135,17 @@ and _ node_data =
 
 and 'a node = {loc: Location.t; data: 'a node_data}
 
+let get_node_data : type a. a node -> a =
+ fun n ->
+  match n.data with
+  | Inst x ->
+      x
+  | Data x ->
+      x
+  | Type x ->
+      x
+  | Comparable_type x ->
+      x
+
 type program =
   {param: typ node; storage: typ node; return: typ node; code: inst node}
-
-val get_node_data : 'a node -> 'a
