@@ -1,12 +1,3 @@
-open Batteries
-
-(* let sprint_list ?(first = "[") ?(last = "]") ?(sep = "; ") to_string l =
-  let strout = BatIO.output_string () in
-  List.print ~first ~last ~sep
-    (fun outch x -> to_string x |> String.print outch)
-    strout l ;
-  BatIO.close_out strout *)
-
 type ident = string
 
 type decl = ident
@@ -31,7 +22,7 @@ type binop =
   | Geq
   | Compare
 
-type comparable_type =
+type simp_comparable_type =
   | T_int
   | T_nat
   | T_string
@@ -42,23 +33,28 @@ type comparable_type =
   | T_timestamp
   | T_address
 
-type typ =
-  | T_comparable of comparable_type
+and comparable_type =
+  | T_simp of simp_comparable_type t
+  | T_cmp_pair of simp_comparable_type t * comparable_type t
+
+and typ =
+  | T_comparable of comparable_type t
   | T_key
   | T_unit
   | T_signature
-  | T_option of typ
-  | T_list of typ
-  | T_set of comparable_type
+  | T_option of typ t
+  | T_list of typ t
+  | T_set of comparable_type t
   | T_operation
-  | T_contract of typ
-  | T_pair of typ * typ
-  | T_or of typ * typ
-  | T_lambda of typ * typ
-  | T_map of comparable_type * typ
-  | T_big_map of comparable_type * typ
+  | T_contract of typ t
+  | T_pair of typ t * typ t
+  | T_or of typ t * typ t
+  | T_lambda of typ t * typ t
+  | T_map of comparable_type t * typ t
+  | T_big_map of comparable_type t * typ t
+  | T_chain_id
 
-type expr =
+and expr =
   | E_unop of unop * expr t
   | E_binop of binop * expr t * expr t
   | E_ident of string
@@ -82,6 +78,7 @@ type expr =
   | E_list of expr t list
   | E_set of expr t list
   | E_map of (expr t * expr t) list
+  | E_big_map of (expr t * expr t) list
   | E_stmt of stmt t
   | E_mem of expr t * expr t
   | E_get of expr t * expr t
@@ -90,7 +87,7 @@ type expr =
   | E_concat of expr t * expr t
   | E_slice of expr t * expr t * expr t
   | E_pack of expr t
-  | E_unpack of expr t
+  | E_unpack of typ t * expr t
   | E_self
   | E_contract_of_address of expr t
   | E_set_delegate of expr t
@@ -116,6 +113,10 @@ type expr =
   | E_list_hd of expr t
   | E_list_tl of expr t
   | E_size of expr t
+  | E_bytes of string
+  | E_isnat of expr t
+  | E_int_of_nat of expr t
+  | E_chain_id
 
 and stmt =
   | S_seq of stmt t * stmt t
@@ -189,46 +190,18 @@ and _ node_data =
   | Stmt : stmt -> stmt node_data
   | Decl : decl -> decl node_data
   | Expr : expr -> expr node_data
+  | Type : typ -> typ node_data
+  | Comparable_type : comparable_type -> comparable_type node_data
+  | Simp_comparable_type :
+      simp_comparable_type
+      -> simp_comparable_type node_data
 
-and 'a t = {id: int; loc: Location.t; data: 'a node_data}
+and 'a t = { id : int; loc : Michelson.Location.t; data : 'a node_data }
 
-let counter = ref (-1)
+val create : ?loc:Michelson.Location.t -> 'a node_data -> 'a t
 
-let next_counter () =
-  let () = counter := !counter + 1 in
-  !counter
+val get_node_data : 'a t -> 'a
 
-let create ?(loc = Location.Unknown) data = {id= next_counter (); loc; data}
-
-let get_node_data : type a. a t -> a =
- fun n -> match n.data with Stmt s -> s | Decl d -> d | Expr e -> e
-
-(* let rec stmt_to_string = 
-  let open Printf in
-  function
-  | Cfg_var_decl v ->
-      sprintf "var %s" (get_node_data v)
-  | Cfg_assign (lv, rv) ->
-      sprintf "%s = %s" (to_string lv) (to_string rv)
-  | Cfg_guard e ->
-      sprintf "test %s" (to_string e)
-  | Cfg_jump ->
-      sprintf "jump"
-  | Cfg_call (f, args) ->
-      sprintf "%s (%s)" (to_string f)
-        (sprint_list ~first:"" ~last:"" ~sep:", " to_string args) *)
-let rec expr_to_string (_ : expr) = "" (* TODO: *)
-
-and stmt_to_string (_ : stmt) = "" (* TODO: *)
-
-and to_string : type a. a t -> string =
- fun n ->
-  match n.data with
-  | Stmt _ ->
-      stmt_to_string (get_node_data n)
-  | Decl d ->
-      d
-  | Expr e ->
-      expr_to_string e
+val to_string : 'a t -> string
 
 type program = stmt t

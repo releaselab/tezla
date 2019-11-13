@@ -1,5 +1,5 @@
 (library
- (name michelscil_cfg)
- (public_name michelscil_cfg)
- (libraries michelscil batteries ocamlgraph)
+ (name tezla_cfg)
+ (public_name tezla-cfg)
+ (libraries michelson tezla batteries ocamlgraph)
  (modules_without_implementation sig))

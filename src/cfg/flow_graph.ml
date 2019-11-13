@@ -1,22 +1,22 @@
-open Michelscil
+open Tezla
 
 module Common = struct
-  type program = Michelson.program
+  type program = Michelson.Ast.program
 
-  type vertex = Morley.stmt Morley.t
+  type vertex = Ast.stmt Ast.t
 
-  type expr = Morley.expr
+  type expr = Ast.expr
 
   type edge_label = Normal | If_true | If_false
 
   module V = struct
     type t = vertex
 
-    let compare x y = compare x.Morley.id y.Morley.id
+    let compare x y = compare x.Ast.id y.Ast.id
 
-    let hash x = Hashtbl.hash x.Morley.id
+    let hash x = Hashtbl.hash x.Ast.id
 
-    let equal x y = x.Morley.id = y.Morley.id
+    let equal x y = x.Ast.id = y.Ast.id
   end
 
   module E = struct
@@ -42,13 +42,13 @@ module Common = struct
   struct
     include G
 
-    let vertex_name v = string_of_int v.Morley.id
+    let vertex_name v = string_of_int v.Ast.id
 
     let graph_attributes _ = []
 
-    let default_vertex_attributes _ = [`Shape `Box; `Fontname "Courier"]
+    let default_vertex_attributes _ = [ `Shape `Box; `Fontname "Courier" ]
 
-    let vertex_attributes v = [`Label (X.label_to_dot_label v)]
+    let vertex_attributes v = [ `Label (X.label_to_dot_label v) ]
 
     let default_edge_attributes _ = []
 
@@ -58,9 +58,9 @@ module Common = struct
   end
 
   module Wrapper = struct
-    let inflow g n = G.pred g n |> List.map (fun n -> n.Morley.id)
+    let inflow g n = G.pred g n |> List.map (fun n -> n.Ast.id)
 
-    let outflow g n = G.succ g n |> List.map (fun n -> n.Morley.id)
+    let outflow g n = G.succ g n |> List.map (fun n -> n.Ast.id)
 
     let is_extremal exts l = List.mem l exts
 
@@ -73,26 +73,28 @@ module Common = struct
     let dot_output _ g p f =
       let module Helper = struct
         let label_to_dot_label n =
-          Printf.sprintf "[%s]^%d" (Morley.to_string n) n.Morley.id
+          Printf.sprintf "[%s]^%d" (Ast.to_string n) n.Ast.id
 
         let label_to_subgraph n =
-          let fid = Hashtbl.find p n.Morley.id in
-          { Graph.Graphviz.DotAttributes.sg_name= fid
-          ; sg_attributes= [`Label fid]
-          ; sg_parent= None }
+          let fid = Hashtbl.find p n.Ast.id in
+          {
+            Graph.Graphviz.DotAttributes.sg_name = fid;
+            sg_attributes = [ `Label fid ];
+            sg_parent = None;
+          }
       end in
       let module Dot_ = Graph.Graphviz.Dot (Display (Helper)) in
       let oc = open_out f in
-      Dot_.output_graph oc g ; close_out oc
+      Dot_.output_graph oc g;
+      close_out oc
 
     let display_with_gv b g p =
       let tmp_dot = Filename.temp_file "graph" ".dot" in
-      dot_output b g p tmp_dot ;
+      dot_output b g p tmp_dot;
       let tmp_ps = Filename.temp_file "graph" ".ps" in
       ignore
         (Sys.command
-           ( "dot -Tps " ^ tmp_dot ^ " > " ^ tmp_ps ^ "; evince " ^ tmp_ps
-           ^ " &" )) ;
+           ("dot -Tps " ^ tmp_dot ^ " > " ^ tmp_ps ^ "; evince " ^ tmp_ps ^ " &"));
       Sys.remove tmp_dot
   end
 end
@@ -101,19 +103,22 @@ module Cfg = struct
   open Batteries
   include Common
 
-  type t =
-    { blocks: (int, vertex) Hashtbl.t
-    ; flow: G.t
-    ; functions: (int, string) Hashtbl.t
-    ; mutable extremals: int list
-    ; mutable extremalsR: int list }
+  type t = {
+    blocks : (int, vertex) Hashtbl.t;
+    flow : G.t;
+    functions : (int, string) Hashtbl.t;
+    mutable extremals : int list;
+    mutable extremalsR : int list;
+  }
 
   let create () =
-    { blocks= Hashtbl.create 10
-    ; flow= G.create ()
-    ; functions= Hashtbl.create 10
-    ; extremals= []
-    ; extremalsR= [] }
+    {
+      blocks = Hashtbl.create 10;
+      flow = G.create ();
+      functions = Hashtbl.create 10;
+      extremals = [];
+      extremalsR = [];
+    }
 
   let get t = Hashtbl.find t.blocks
 
@@ -130,25 +135,26 @@ module Cfg = struct
   let is_extremalR g = Wrapper.is_extremal g.extremalsR
 
   let add t func_id v =
-    let () = Hashtbl.add t.blocks v.Morley.id v in
-    Wrapper.add t.flow t.functions func_id v v.Morley.id
+    let () = Hashtbl.add t.blocks v.Ast.id v in
+    Wrapper.add t.flow t.functions func_id v v.Ast.id
 
-  let connect {flow= g; _} ?(label = E.default) = Wrapper.connect g label
+  let connect { flow = g; _ } ?(label = E.default) = Wrapper.connect g label
 
-  let get_blocks {blocks= b; _} = b
+  let get_blocks { blocks = b; _ } = b
 
-  let get_func_id {functions= p; _} = Hashtbl.find p
+  let get_func_id { functions = p; _ } = Hashtbl.find p
 
   let extremal t l = t.extremals <- l :: t.extremals
 
   let extremalR t l = t.extremalsR <- l :: t.extremalsR
 
-  let labels {blocks; _} = Hashtbl.fold (fun l _ -> Set.add l) blocks Set.empty
+  let labels { blocks; _ } =
+    Hashtbl.fold (fun l _ -> Set.add l) blocks Set.empty
 
-  let dot_output {blocks= b; flow= g; functions= p; _} =
+  let dot_output { blocks = b; flow = g; functions = p; _ } =
     Wrapper.dot_output b g p
 
-  let display_with_gv {blocks= b; flow= g; functions= p; _} =
+  let display_with_gv { blocks = b; flow = g; functions = p; _ } =
     Wrapper.display_with_gv b g p
 
   let show = display_with_gv
@@ -158,12 +164,12 @@ module Cfg = struct
     let graph = create () in
     let pBlocks = Hashtbl.create 10 in
     let env = Env.empty_env in
-    let p_scil, _ = Converter.convert env p.Michelscil.Michelson.code in
+    let p_scil, _ = Converter.convert env p.Michelson.Ast.code in
     let add_edge (i, j) = connect graph i j in
     let () =
       let open Flow in
-      let open Morley in
-      let {nodes; flow; _} = flow p_scil in
+      let open Ast in
+      let { nodes; flow; _ } = flow p_scil in
       let () = Set.iter (fun b -> add graph "main" b) nodes in
       let init = init p_scil in
       let () = extremal graph init.id in

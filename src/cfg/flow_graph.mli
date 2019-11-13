@@ -1,15 +1,15 @@
-open Michelscil
+open Tezla
 
 module Cfg :
   Sig.Flow_graph
-    with type vertex = Morley.stmt Morley.t
-     and type expr = Morley.expr
-     and type program = Michelson.program
+    with type vertex = Ast.stmt Ast.t
+     and type expr = Ast.expr
+     and type program = Michelson.Ast.program
 
 (* module Make_inter_cfg
     (F : Sig.Flow
-           with type block = Morley.stmt
-            and type vertex = Morley.stmt Morley.t) :
+           with type block = Ast.stmt
+            and type vertex = Ast.stmt Ast.t) :
   Sig.Inter_flow_graph
-    with type vertex = Morley.stmt Morley.t
-     and type expr = Morley.expr *)
+    with type vertex = Ast.stmt Ast.t
+     and type expr = Ast.expr *)

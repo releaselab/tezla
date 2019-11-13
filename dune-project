@@ -1,5 +1,5 @@
 (lang dune 1.11)
-(name michelscil)
+(name tezla)
 
 (generate_opam_files true)
 
@@ -11,17 +11,18 @@
 (maintainers "João Santos Reis <joaosreis@outlook.pt>")
 
 (package
- (name michelscil)
+ (name tezla)
  (synopsis "An instantiation of SCIL for the Michelson language")
  (depends
   (dune :build)
   (zarith :dev)))
 
 (package
- (name michelscil_cfg)
- (synopsis "An CFG generator for MichelSCIL programs")
+ (name tezla-cfg)
+ (synopsis "An CFG generator for Tezla programs")
  (depends
   (dune :build)
-  (michelscil :dev)
+  (michelson :dev)
+  (tezla :dev)
   (ocamlgraph :dev)
   (batteries :dev)))
