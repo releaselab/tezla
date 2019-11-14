@@ -22,7 +22,7 @@ type binop =
   | Geq
   | Compare
 
-type simp_comparable_type =
+type comparable_type =
   | T_int
   | T_nat
   | T_string
@@ -32,10 +32,6 @@ type simp_comparable_type =
   | T_key_hash
   | T_timestamp
   | T_address
-
-and comparable_type =
-  | T_simp of simp_comparable_type t
-  | T_cmp_pair of simp_comparable_type t * comparable_type t
 
 and typ =
   | T_comparable of comparable_type t
@@ -192,9 +188,6 @@ and _ node_data =
   | Expr : expr -> expr node_data
   | Type : typ -> typ node_data
   | Comparable_type : comparable_type -> comparable_type node_data
-  | Simp_comparable_type :
-      simp_comparable_type
-      -> simp_comparable_type node_data
 
 and 'a t = { id : int; loc : Michelson.Location.t; data : 'a node_data }
 

@@ -68,7 +68,7 @@ let join_envs_while s env =
   let s' = create (Stmt (S_seq (decls, create (Stmt (S_seq (s, assigns)))))) in
   (env', s')
 
-let simp_comparable_type_converter n =
+let comparable_type_converter n =
   let open Michelson.Ast in
   let n' =
     match get_node_data n with
@@ -81,18 +81,6 @@ let simp_comparable_type_converter n =
     | T_key_hash -> Ast.T_key_hash
     | T_timestamp -> Ast.T_timestamp
     | T_address -> Ast.T_address
-  in
-  Ast.create ~loc:n.loc (Simp_comparable_type n')
-
-let rec comparable_type_converter n =
-  let open Michelson.Ast in
-  let n' =
-    match get_node_data n with
-    | T_simp t -> Ast.T_simp (simp_comparable_type_converter t)
-    | T_cmp_pair (t_1, t_2) ->
-        let t_1' = simp_comparable_type_converter t_1 in
-        let t_2' = comparable_type_converter t_2 in
-        Ast.T_cmp_pair (t_1', t_2')
   in
   Ast.create ~loc:n.loc (Comparable_type n')
 
@@ -506,5 +494,6 @@ and convert env i =
         push (create_expr_node (E_int_of_nat x)) env' )
   | I_chain_id ->
       (create_stmt_node i.loc S_skip, push (create_expr_node E_chain_id) env)
+  | I_noop -> (create_stmt_node i.loc S_skip, env)
 
 (* | _ -> assert false *)
