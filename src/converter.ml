@@ -1,119 +1,133 @@
 open Env
 
 let string_to_expr s =
-  let open Ast in
+  let open Adt in
   create (Expr (E_ident s))
 
 let join_envs_if s_t env_t s_f env_f =
-  let open Ast in
-  let env = join string_to_expr env_t env_f in
-  let decls =
-    List.fold_left
-      (fun acc n ->
-        match get_node_data n with
-        | E_ident v ->
-            let decl = create (Decl v) in
-            create (Stmt (S_seq (acc, create (Stmt (S_var_decl decl)))))
-        | _ -> assert false)
-      (create (Stmt S_skip)) env
-  in
-  let assigns_t =
-    List.fold_left2
-      (fun acc x n ->
-        match get_node_data n with
-        | E_ident v ->
-            create (Stmt (S_seq (acc, create (Stmt (S_assign (v, x))))))
-        | _ -> assert false)
-      (create (Stmt S_skip)) env_t env
-  in
-  let assigns_f =
-    List.fold_left2
-      (fun acc x n ->
-        match get_node_data n with
-        | E_ident v ->
-            create (Stmt (S_seq (acc, create (Stmt (S_assign (v, x))))))
-        | _ -> assert false)
-      (create (Stmt S_skip)) env_f env
-  in
-  let s_t' =
-    create (Stmt (S_seq (decls, create (Stmt (S_seq (s_t, assigns_t))))))
-  in
-  let s_f' =
-    create (Stmt (S_seq (decls, create (Stmt (S_seq (s_f, assigns_f))))))
-  in
-  (env, s_t', s_f')
+  let open Adt in
+  match join string_to_expr env_t env_f with
+  | Stack env ->
+      let decls =
+        List.fold_left
+          (fun acc n ->
+            match get_node_data n with
+            | E_ident v ->
+                let decl = create (Decl v) in
+                create (Stmt (S_seq (acc, create (Stmt (S_var_decl decl)))))
+            | _ -> assert false)
+          (create (Stmt S_skip)) env
+      in
+      let assigns_t =
+        match env_t with
+        | Failed -> create (Stmt S_skip)
+        | Stack env_t' ->
+            List.fold_left2
+              (fun acc x n ->
+                match get_node_data n with
+                | E_ident v ->
+                    create (Stmt (S_seq (acc, create (Stmt (S_assign (v, x))))))
+                | _ -> assert false)
+              (create (Stmt S_skip)) env_t' env
+      in
+      let assigns_f =
+        match env_f with
+        | Failed -> create (Stmt S_skip)
+        | Stack env_f' ->
+            List.fold_left2
+              (fun acc x n ->
+                match get_node_data n with
+                | E_ident v ->
+                    create (Stmt (S_seq (acc, create (Stmt (S_assign (v, x))))))
+                | _ -> assert false)
+              (create (Stmt S_skip)) env_f' env
+      in
+      let s_t' =
+        create (Stmt (S_seq (decls, create (Stmt (S_seq (s_t, assigns_t))))))
+      in
+      let s_f' =
+        create (Stmt (S_seq (decls, create (Stmt (S_seq (s_f, assigns_f))))))
+      in
+      (Stack env, s_t', s_f')
+  | Failed -> (Failed, s_t, s_f)
 
 let join_envs_while s env =
-  let open Ast in
+  let open Adt in
   let env' = join string_to_expr env env in
   let decls =
-    List.fold_left
-      (fun acc n ->
-        match get_node_data n with
-        | E_ident v ->
-            let decl = create (Decl v) in
-            create (Stmt (S_seq (acc, create (Stmt (S_var_decl decl)))))
-        | _ -> assert false)
-      (create (Stmt S_skip)) env
+    match env' with
+    | Failed -> create (Stmt S_skip)
+    | Stack env'' ->
+        List.fold_left
+          (fun acc n ->
+            match get_node_data n with
+            | E_ident v ->
+                let decl = create (Decl v) in
+                create (Stmt (S_seq (acc, create (Stmt (S_var_decl decl)))))
+            | _ -> assert false)
+          (create (Stmt S_skip)) env''
   in
   let assigns =
-    List.fold_left2
-      (fun acc x n ->
-        match get_node_data n with
-        | E_ident v ->
-            create (Stmt (S_seq (acc, create (Stmt (S_assign (v, x))))))
-        | _ -> assert false)
-      (create (Stmt S_skip)) env env'
+    match (env, env') with
+    | Failed, _ | _, Failed -> create (Stmt S_skip)
+    | Stack env, Stack env' ->
+        List.fold_left2
+          (fun acc x n ->
+            match get_node_data n with
+            | E_ident v ->
+                create (Stmt (S_seq (acc, create (Stmt (S_assign (v, x))))))
+            | _ -> assert false)
+          (create (Stmt S_skip)) env env'
   in
   let s' = create (Stmt (S_seq (decls, create (Stmt (S_seq (s, assigns)))))) in
   (env', s')
 
 let comparable_type_converter n =
-  let open Michelson.Ast in
+  let open Michelson.Adt in
   let n' =
     match get_node_data n with
-    | T_int -> Ast.T_int
-    | T_nat -> Ast.T_nat
-    | T_string -> Ast.T_string
-    | T_bytes -> Ast.T_bytes
-    | T_mutez -> Ast.T_mutez
-    | T_bool -> Ast.T_bool
-    | T_key_hash -> Ast.T_key_hash
-    | T_timestamp -> Ast.T_timestamp
-    | T_address -> Ast.T_address
+    | T_int -> Adt.T_int
+    | T_nat -> Adt.T_nat
+    | T_string -> Adt.T_string
+    | T_bytes -> Adt.T_bytes
+    | T_mutez -> Adt.T_mutez
+    | T_bool -> Adt.T_bool
+    | T_key_hash -> Adt.T_key_hash
+    | T_timestamp -> Adt.T_timestamp
+    | T_address -> Adt.T_address
   in
-  Ast.create ~loc:n.loc (Comparable_type n')
+  Adt.create ~loc:n.loc (Comparable_type n')
 
 let rec type_converter n =
-  let open Michelson.Ast in
+  let open Michelson.Adt in
   let n' =
     match get_node_data n with
-    | T_comparable t -> Ast.T_comparable (comparable_type_converter t)
-    | T_key -> Ast.T_key
-    | T_unit -> Ast.T_unit
-    | T_signature -> Ast.T_signature
-    | T_option t -> Ast.T_option (type_converter t)
-    | T_list t -> Ast.T_list (type_converter t)
-    | T_set t -> Ast.T_set (comparable_type_converter t)
-    | T_operation -> Ast.T_operation
-    | T_contract t -> Ast.T_contract (type_converter t)
-    | T_pair (t_1, t_2) -> Ast.T_pair (type_converter t_1, type_converter t_2)
-    | T_or (t_1, t_2) -> Ast.T_or (type_converter t_1, type_converter t_2)
+    | T_comparable t -> Adt.T_comparable (comparable_type_converter t)
+    | T_key -> Adt.T_key
+    | T_unit -> Adt.T_unit
+    | T_signature -> Adt.T_signature
+    | T_option t -> Adt.T_option (type_converter t)
+    | T_list t -> Adt.T_list (type_converter t)
+    | T_set t -> Adt.T_set (comparable_type_converter t)
+    | T_operation -> Adt.T_operation
+    | T_contract t -> Adt.T_contract (type_converter t)
+    | T_pair (t_1, t_2) -> Adt.T_pair (type_converter t_1, type_converter t_2)
+    | T_or (t_1, t_2) -> Adt.T_or (type_converter t_1, type_converter t_2)
     | T_lambda (t_1, t_2) ->
-        Ast.T_lambda (type_converter t_1, type_converter t_2)
+        Adt.T_lambda (type_converter t_1, type_converter t_2)
     | T_map (t_1, t_2) ->
-        Ast.T_map (comparable_type_converter t_1, type_converter t_2)
+        Adt.T_map (comparable_type_converter t_1, type_converter t_2)
     | T_big_map (t_1, t_2) ->
-        Ast.T_big_map (comparable_type_converter t_1, type_converter t_2)
-    | T_chain_id -> Ast.T_chain_id
+        Adt.T_big_map (comparable_type_converter t_1, type_converter t_2)
+    | T_chain_id -> Adt.T_chain_id
   in
-  Ast.create ~loc:n.loc (Type n')
+  Adt.create ~loc:n.loc (Type n')
 
 let rec data_to_expr d =
-  let open Michelson.Ast in
-  let open Ast in
+  let open Michelson.Adt in
+  let open Adt in
   let e =
-    match Michelson.Ast.get_node_data d with
+    match Michelson.Adt.get_node_data d with
     | D_int i -> E_int i
     | D_nat i -> E_nat i
     | D_string s -> E_string s
@@ -142,8 +156,8 @@ let rec data_to_expr d =
   create ~loc:d.loc (Expr e)
 
 and convert env i =
-  let open Michelson.Ast in
-  let open Ast in
+  let open Michelson.Adt in
+  let open Adt in
   let create_stmt_node loc s = create ~loc (Stmt s) in
   let create_expr_node ?(loc = Michelson.Location.Unknown) e =
     create ~loc (Expr e)
@@ -154,7 +168,8 @@ and convert env i =
     in
     loop
   in
-  match Michelson.Ast.get_node_data i with
+  let zero () = create_expr_node (E_int Z.zero) in
+  match Michelson.Adt.get_node_data i with
   | I_seq (i_1, i_2) ->
       let s_1, env_1 = convert env i_1 in
       let s_2, env_2 = convert env_1 i_2 in
@@ -306,7 +321,9 @@ and convert env i =
       let s, env' = convert env' i in
       let env' = List.fold_left (fun acc x -> push x acc) env' xl in
       (s, env')
-  | I_failwith -> (create_stmt_node i.loc S_todo, env)
+  | I_failwith ->
+      let x, _ = pop env in
+      (create_stmt_node i.loc (S_failwith x), Failed)
   | I_cast -> (create_stmt_node i.loc S_todo, env)
   | I_rename -> (create_stmt_node i.loc S_todo, env)
   | I_concat ->
@@ -400,25 +417,21 @@ and convert env i =
       ( create_stmt_node i.loc S_skip,
         push (create_expr_node (E_binop (Neq, x_1, x_2))) env' )
   | I_lt ->
-      let x_1, env' = pop env in
-      let x_2, env' = pop env' in
+      let x, env' = pop env in
       ( create_stmt_node i.loc S_skip,
-        push (create_expr_node (E_binop (Lt, x_1, x_2))) env' )
+        push (create_expr_node (E_binop (Lt, x, zero ()))) env' )
   | I_gt ->
-      let x_1, env' = pop env in
-      let x_2, env' = pop env' in
+      let x, env' = pop env in
       ( create_stmt_node i.loc S_skip,
-        push (create_expr_node (E_binop (Gt, x_1, x_2))) env' )
+        push (create_expr_node (E_binop (Gt, x, zero ()))) env' )
   | I_le ->
-      let x_1, env' = pop env in
-      let x_2, env' = pop env' in
+      let x, env' = pop env in
       ( create_stmt_node i.loc S_skip,
-        push (create_expr_node (E_binop (Leq, x_1, x_2))) env' )
+        push (create_expr_node (E_binop (Leq, x, zero ()))) env' )
   | I_ge ->
-      let x_1, env' = pop env in
-      let x_2, env' = pop env' in
+      let x, env' = pop env in
       ( create_stmt_node i.loc S_skip,
-        push (create_expr_node (E_binop (Geq, x_1, x_2))) env' )
+        push (create_expr_node (E_binop (Geq, x, zero ()))) env' )
   | I_self -> (create_stmt_node i.loc S_skip, push (create_expr_node E_self) env)
   | I_contract _ ->
       let x, env' = pop env in
@@ -495,5 +508,11 @@ and convert env i =
   | I_chain_id ->
       (create_stmt_node i.loc S_skip, push (create_expr_node E_chain_id) env)
   | I_noop -> (create_stmt_node i.loc S_skip, env)
+
+let convert_program p =
+  let env =
+    Env.push (Adt.create (Expr (E_ident (next_var ())))) Env.empty_env
+  in
+  fst (convert env p.Michelson.Adt.code)
 
 (* | _ -> assert false *)

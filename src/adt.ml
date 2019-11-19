@@ -242,7 +242,8 @@ and to_string : type a. a t -> string =
   | Stmt _ -> stmt_to_string (get_node_data n)
   | Decl d -> d
   | Expr e -> expr_to_string e
-  | Type _ | Comparable_type _ -> ""
+  | Type _ -> ""
+  | Comparable_type _ -> ""
 
 (* TODO: *)
 

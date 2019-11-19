@@ -1,7 +1,7 @@
 open Batteries
 open Tezla
 
-type vertex = Ast.stmt Ast.t
+type vertex = Adt.stmt Adt.t
 
 type t = {
   nodes : vertex Set.t;
@@ -11,7 +11,7 @@ type t = {
 }
 
 let rec init n =
-  let open Ast in
+  let open Adt in
   match get_node_data n with
   | S_seq (s, _) -> init s
   | S_var_decl _ | S_assign _ | S_skip | S_size | S_empty_set _
@@ -33,7 +33,7 @@ let rec init n =
 
 let final x =
   let open Set.Infix in
-  let open Ast in
+  let open Adt in
   let rec final_rec acc n =
     match get_node_data n with
     | S_if (_, x, y) | S_if_cons (x, y) -> final_rec (final_rec acc x) y
@@ -45,7 +45,7 @@ let final x =
 let rev_pair x y = (y, x)
 
 let flow x =
-  let open Ast in
+  let open Adt in
   let open Set.Infix in
   let ht = Hashtbl.create 10 in
   let rec flow_rec (nodes, flow) n =
