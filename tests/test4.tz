@@ -1,0 +1,24 @@
+parameter (option string);
+storage (pair (pair nat nat) (map nat string));
+code {DUP; CAR;
+      # Retrieving an element
+      IF_NONE {CDR; DUP; CAR; DIP{CDR; DUP}; DUP;
+               CAR; SWAP; DIP{GET}; # Check if an element is available
+               SWAP;
+               # Put NONE on stack and finish
+               IF_NONE {NIL operation; DIP{PAIR}; PAIR}
+                       # remove the entry from the map
+                       { DROP;
+                         DUP; DIP{ CAR; DIP{NONE string}; UPDATE};
+                         DUP; CAR; PUSH nat 1; ADD; DIP{CDR}; PAIR; PAIR;
+                         NIL operation;
+                         PAIR}
+              }
+              # Arrange the stack
+              {DIP{DUP; CDR; CAR; DIP{CDR; CDR}; DUP}; SWAP; CAR;
+               # Add the element to the map
+               DIP{SOME; SWAP; CDR; DUP; DIP{UPDATE};
+                   # Increment the second number
+                   PUSH nat 1; ADD};
+               # Cleanup and finish
+               PAIR; PAIR; NIL operation; PAIR}}

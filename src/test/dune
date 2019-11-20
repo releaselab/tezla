@@ -6,4 +6,4 @@
 
 (alias
   (name runtest)
-  (action (progn (run ./main.exe))))
+  (action (run ./main.exe ../../../../tests/)))

@@ -247,13 +247,11 @@ and convert env i =
       ( create_stmt_node i.loc S_skip,
         push (create_expr_node (E_cons (x_1, x_2))) env' )
   | I_if_cons (i_t, i_f) ->
-      let x, env_t = pop env in
+      let x, env_f = pop env in
       let c = create_expr_node (E_is_list_empty x) in
-      let env_f =
-        push
-          (create_expr_node (E_list_hd x))
-          (push (create_expr_node (E_list_tl x)) env_t)
-      in
+      let hd = create_expr_node (E_list_hd x) in
+      let tl = create_expr_node (E_list_hd x) in
+      let env_t = push hd (push tl env_f) in
       let s_t, env_t' = convert env_t i_t in
       let s_f, env_f' = convert env_f i_f in
       let env', s_t', s_f' = join_envs_if s_t env_t' s_f env_f' in
@@ -296,7 +294,7 @@ and convert env i =
   | I_loop i ->
       let c, env' = pop env in
       let s, env' = convert env' i in
-      let env', s' = join_envs_while s env' in
+      let env', s' = join_envs_while s (drop env') in
       (create_stmt_node i.loc (S_while (c, s')), env')
   | I_loop_left i ->
       let x, env' = pop env in

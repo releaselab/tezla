@@ -1,6 +1,22 @@
-parameter (pair (pair (nat) (or (pair (mutez) (contract unit)) (or (option key_hash) (pair (nat) (list key))))) (list (option signature)));
+parameter (pair
+             (pair
+                (nat) # counter, used to prevent replay attacks
+                (or    # payload to sign, represents the requested action
+                   (pair    # transfer tokens
+                      (mutez) # amount to transfer
+                      (contract unit)) # destination to transfer to
+                   (or
+                      (option key_hash) # change the delegate to this address
+                      (pair          # change the keys controlling the multisig
+                         (nat)         # new threshold
+                         (list key)))))     # new list of keys
+             (list (option signature)));    # signatures
 
-storage (pair (nat) (pair (nat) (list key))) ;
+storage (pair
+          (nat)
+          (pair
+            (nat)
+            (list key))) ;
 
 code
   {
