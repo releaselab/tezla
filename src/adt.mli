@@ -50,6 +50,11 @@ and typ =
   | T_big_map of comparable_type t * typ t
   | T_chain_id
 
+and operation =
+  | O_create_contract of program * expr t * expr t * expr t
+  | O_transfer_tokens of expr t * expr t * expr t
+  | O_set_delegate of expr t
+
 and expr =
   | E_unop of unop * expr t
   | E_binop of binop * expr t * expr t
@@ -63,7 +68,7 @@ and expr =
   | E_key of string
   | E_key_hash of string
   | E_mutez of string
-  | E_contract of string
+  | E_operation of operation
   | E_unit
   | E_bool of bool
   | E_pair of expr t * expr t
@@ -75,7 +80,6 @@ and expr =
   | E_set of expr t list
   | E_map of (expr t * expr t) list
   | E_big_map of (expr t * expr t) list
-  | E_stmt of stmt t
   | E_mem of expr t * expr t
   | E_get of expr t * expr t
   | E_update of expr t * expr t * expr t
@@ -86,7 +90,6 @@ and expr =
   | E_unpack of typ t * expr t
   | E_self
   | E_contract_of_address of expr t
-  | E_set_delegate of expr t
   | E_create_account of expr t * expr t * expr t * expr t
   | E_implicit_account of expr t
   | E_now
@@ -105,7 +108,7 @@ and expr =
   | E_lift_option of expr t
   | E_is_left of expr t
   | E_lift_or of expr t
-  | E_is_list_empty of expr t
+  | E_is_cons of expr t
   | E_list_hd of expr t
   | E_list_tl of expr t
   | E_size of expr t
@@ -113,6 +116,9 @@ and expr =
   | E_isnat of expr t
   | E_int_of_nat of expr t
   | E_chain_id
+  | E_transfer_tokens of expr t * expr t * expr t
+  | E_create_contract of program
+  | E_lambda of func
 
 and stmt =
   | S_seq of stmt t * stmt t
@@ -126,60 +132,17 @@ and stmt =
   | S_empty_set of comparable_type
   | S_empty_map of comparable_type * typ
   | S_map of stmt t
-  | S_iter of stmt t
+  | S_iter of expr t * expr t
   | S_mem
   | S_get
   | S_update
   | S_loop of stmt t
   | S_loop_left of stmt t
-  | S_lambda of typ * typ * stmt t
-  | S_exec
+  | S_exec of stmt t * expr t
   | S_dip of stmt t
   | S_failwith of expr t
   | S_cast
-  | S_rename
-  | S_concat
-  | S_slice
-  | S_pack
-  | S_unpack
-  | S_add
-  | S_sub
-  | S_mul
-  | S_ediv
-  | S_abs
-  | S_neg
-  | S_lsl
-  | S_lsr
-  | S_or
-  | S_and
-  | S_xor
-  | S_not
-  | S_compare
-  | S_eq
-  | S_neq
-  | S_lt
-  | S_gt
-  | S_le
-  | S_ge
-  | S_self
   | S_contract of typ
-  | S_transfer_tokens
-  | S_set_delegate
-  | S_create_account
-  | S_create_contract of stmt t
-  | S_implicit_account
-  | S_now
-  | S_amount
-  | S_balance
-  | S_check_signature
-  | S_blake2b
-  | S_sha256
-  | S_sha512
-  | S_hash_key
-  | S_steps_to_quota
-  | S_source
-  | S_sender
-  | S_address
   | S_todo
 
 and _ node_data =
@@ -191,10 +154,12 @@ and _ node_data =
 
 and 'a t = { id : int; loc : Michelson.Location.t; data : 'a node_data }
 
+and func = stmt t * expr t
+
+and program = typ t * typ t * func
+
 val create : ?loc:Michelson.Location.t -> 'a node_data -> 'a t
 
 val get_node_data : 'a t -> 'a
 
 val to_string : 'a t -> string
-
-type program = stmt t

@@ -15,18 +15,10 @@ let rec init n =
   match get_node_data n with
   | S_seq (s, _) -> init s
   | S_var_decl _ | S_assign _ | S_skip | S_size | S_empty_set _
-  | S_empty_map _ | S_map _ | S_mem | S_get | S_update | S_cast | S_rename
-  | S_concat | S_slice | S_pack | S_unpack | S_add | S_sub | S_mul | S_ediv
-  | S_abs | S_neg | S_lsl | S_lsr | S_or | S_and | S_xor | S_not | S_compare
-  | S_eq | S_neq | S_lt | S_gt | S_le | S_ge | S_self | S_transfer_tokens
-  | S_set_delegate | S_create_account | S_implicit_account | S_now | S_amount
-  | S_balance | S_check_signature | S_blake2b | S_sha256 | S_sha512
-  | S_hash_key | S_steps_to_quota | S_source | S_sender | S_address | S_todo
-  | S_exec | S_failwith _ | S_contract _ ->
+  | S_empty_map _ | S_map _ | S_mem | S_get | S_update | S_cast | S_todo
+  | S_exec _ | S_failwith _ | S_contract _ ->
       n
-  | S_create_contract _ | S_dip _ | S_iter _ | S_loop _ | S_loop_left _
-  | S_lambda (_, _, _) ->
-      n
+  | S_dip _ | S_iter _ | S_loop _ | S_loop_left _ -> n
   | S_if _ | S_while _ | S_if_cons _ -> n
 
 (* TODO: *)
