@@ -266,28 +266,14 @@ and convert env i =
       (create_stmt_node i.loc S_skip, push (create_expr_node (E_map [])) env)
   | I_empty_big_map _ ->
       (create_stmt_node i.loc S_skip, push (create_expr_node (E_big_map [])) env)
-  | I_map _ ->
-      (*let l, env' = pop env in
-      let v_list = Env.next_var () in
-      let v_node = create_expr_node (E_ident v_list) in
-      let v_list_assign = create_stmt_node i.loc (S_assign (v_list, l)) in
-      let c = create_expr_node (E_is_cons l) in
-      let hd = create_expr_node (E_list_tl v_node) in
-      let tl = create_expr_node (E_list_tl v_node) in
-      let b', env_while = convert (push hd env') i in
-      let result
-      let tl_assign = create_stmt_node Michelson.Location.Unknown (S_assign (v, tl)) in
-
-      let b, env' = convert (push (create_expr_node l env') i in
-      let env', b' = join_envs_while b env' in*)
-      (create_stmt_node i.loc S_todo, env)
-  | I_iter _ ->
-      (*let body', _ = convert empty_env body in
+  | I_map b ->
+      let body, _ = convert empty_env b in
       let x, env' = pop env in
-      ( create_stmt_node i.loc
-          (S_iter (create_expr_node (E_instruction body'), x)),
-        env' )*)
-      (create_stmt_node i.loc S_todo, env)
+      (create_stmt_node i.loc (S_map (x, body)), env')
+  | I_iter b ->
+      let body, _ = convert empty_env b in
+      let x, env' = pop env in
+      (create_stmt_node i.loc (S_iter (x, body)), env')
   | I_mem ->
       let elt, env' = pop env in
       let set, env' = pop env' in
@@ -351,7 +337,7 @@ and convert env i =
       let x, _ = pop env in
       (create_stmt_node i.loc (S_failwith x), Failed)
   | I_cast -> (create_stmt_node i.loc S_skip, env)
-  | I_rename _ -> (create_stmt_node i.loc S_skip, env)
+  | I_rename -> (create_stmt_node i.loc S_skip, env)
   | I_concat ->
       let s, env' = pop env in
       let t, env' = pop env' in
@@ -467,9 +453,9 @@ and convert env i =
       let x, env' = pop env in
       let amount, env' = pop env' in
       let contract, env' = pop env' in
+      let operation = O_transfer_tokens (x, amount, contract) in
       ( create_stmt_node i.loc S_skip,
-        push (create_expr_node (E_transfer_tokens (x, amount, contract))) env'
-      )
+        push (create_expr_node (E_operation operation)) env' )
   | I_set_delegate ->
       let x, env' = pop env in
       let o = O_set_delegate x in
@@ -480,20 +466,25 @@ and convert env i =
       let delegate, env' = pop env' in
       let delegatable, env' = pop env' in
       let amount, env' = pop env' in
+      let operation =
+        O_create_account (manager, delegate, delegatable, amount)
+      in
+
       ( create_stmt_node i.loc S_skip,
         push
-          (create_expr_node
-             (E_create_account (manager, delegate, delegatable, amount)))
-          env' )
-  | I_create_contract _ ->
-      (* let delegate, env' = pop env in
+          (create_expr_node (E_operation operation))
+          (push (create_expr_node (E_create_account_address operation)) env') )
+  | I_create_contract c ->
+      let delegate, env' = pop env in
       let amount, env' = pop env' in
       let storage, env' = pop env' in
-      let c', _ = convert empty_env c in
-      let o = O_create_contract (c', delegate, amount, storage) in
-      ( create_stmt_node i.loc S_skip,
-        push (create_expr_node (E_operation o)) env' ) *)
-      (create_stmt_node i.loc S_todo, env)
+      let o = O_create_contract (c, delegate, amount, storage) in
+      let env' =
+        push
+          (create_expr_node (E_operation o))
+          (push (create_expr_node (E_create_contract_address o)) env')
+      in
+      (create_stmt_node i.loc S_skip, env')
   | I_implicit_account ->
       let x, env' = pop env in
       ( create_stmt_node i.loc S_skip,
@@ -533,7 +524,7 @@ and convert env i =
   | I_address ->
       let x, env' = pop env in
       ( create_stmt_node i.loc S_skip,
-        push (create_expr_node (E_address_of_contact x)) env' )
+        push (create_expr_node (E_address_of_contract x)) env' )
   | I_isnat ->
       let x, env' = pop env in
       (create_stmt_node i.loc S_skip, push (create_expr_node (E_isnat x)) env')

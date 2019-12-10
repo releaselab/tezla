@@ -15,11 +15,10 @@ let rec init n =
   match get_node_data n with
   | S_seq (s, _) -> init s
   | S_var_decl _ | S_assign _ | S_skip | S_size | S_empty_set _
-  | S_empty_map _ | S_map _ | S_mem | S_get | S_update | S_cast | S_todo
-  | S_exec _ | S_failwith _ | S_contract _ ->
+  | S_empty_map _ | S_map _ | S_cast | S_exec _ | S_failwith _ | S_contract _ ->
       n
-  | S_dip _ | S_iter _ | S_loop _ | S_loop_left _ -> n
-  | S_if _ | S_while _ | S_if_cons _ -> n
+  | S_iter _ | S_loop _ | S_loop_left _ -> n
+  | S_if _ | S_while _ -> n
 
 (* TODO: *)
 
@@ -28,7 +27,7 @@ let final x =
   let open Adt in
   let rec final_rec acc n =
     match get_node_data n with
-    | S_if (_, x, y) | S_if_cons (x, y) -> final_rec (final_rec acc x) y
+    | S_if (_, x, y) -> final_rec (final_rec acc x) y
     | S_seq (_, x) -> final_rec acc x
     | _ -> acc <-- n
   in
@@ -42,7 +41,7 @@ let flow x =
   let ht = Hashtbl.create 10 in
   let rec flow_rec (nodes, flow) n =
     match get_node_data n with
-    | S_if (_, x, y) | S_if_cons (x, y) ->
+    | S_if (_, x, y) ->
         let flow' = flow <-- (n, init x) <-- (n, init y) in
         flow_rec (flow_rec (nodes, flow') x) y
     | S_while (_, b) ->

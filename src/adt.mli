@@ -51,9 +51,10 @@ and typ =
   | T_chain_id
 
 and operation =
-  | O_create_contract of program * expr t * expr t * expr t
+  | O_create_contract of Michelson.Adt.program * expr t * expr t * expr t
   | O_transfer_tokens of expr t * expr t * expr t
   | O_set_delegate of expr t
+  | O_create_account of expr t * expr t * expr t * expr t
 
 and expr =
   | E_unop of unop * expr t
@@ -90,7 +91,6 @@ and expr =
   | E_unpack of typ t * expr t
   | E_self
   | E_contract_of_address of expr t
-  | E_create_account of expr t * expr t * expr t * expr t
   | E_implicit_account of expr t
   | E_now
   | E_amount
@@ -103,7 +103,8 @@ and expr =
   | E_steps_to_quota
   | E_source
   | E_sender
-  | E_address_of_contact of expr t
+  | E_address_of_contract of expr t
+  | E_create_contract_address of operation
   | E_is_none of expr t
   | E_lift_option of expr t
   | E_is_left of expr t
@@ -116,8 +117,7 @@ and expr =
   | E_isnat of expr t
   | E_int_of_nat of expr t
   | E_chain_id
-  | E_transfer_tokens of expr t * expr t * expr t
-  | E_create_contract of program
+  | E_create_account_address of operation
   | E_lambda of func
 
 and stmt =
@@ -127,23 +127,17 @@ and stmt =
   | S_skip
   | S_if of expr t * stmt t * stmt t
   | S_while of expr t * stmt t
-  | S_if_cons of stmt t * stmt t
   | S_size
   | S_empty_set of comparable_type
   | S_empty_map of comparable_type * typ
-  | S_map of stmt t
-  | S_iter of expr t * expr t
-  | S_mem
-  | S_get
-  | S_update
+  | S_map of expr t * stmt t
+  | S_iter of expr t * stmt t
   | S_loop of stmt t
   | S_loop_left of stmt t
   | S_exec of stmt t * expr t
-  | S_dip of stmt t
   | S_failwith of expr t
   | S_cast
   | S_contract of typ
-  | S_todo
 
 and _ node_data =
   | Stmt : stmt -> stmt node_data
