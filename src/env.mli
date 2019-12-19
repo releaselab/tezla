@@ -1,23 +1,25 @@
-type 'a env = Failed | Stack of 'a list
+type env
 
 val next_var : unit -> string
 
-val empty_env : 'a env
+val empty_env : env
 
-val push : 'a -> 'a env -> 'a env
+val failed_env : env
 
-val pop : 'a env -> 'a * 'a env
+val push : string -> env -> env
 
-val drop : 'a env -> 'a env
+val pop : env -> string * env
 
-val peek : 'a env -> 'a
+val drop : env -> env
 
-val swap : 'a env -> 'a env
+val peek : env -> string
 
-val dig : 'a env -> Z.t -> 'a env
+val swap : env -> env
 
-val dug : 'a env -> Z.t -> 'a env
+val dig : env -> Z.t -> env
 
-val dip : 'a env -> Z.t -> 'a list * 'a env
+val dug : env -> Z.t -> env
 
-val join : (string -> 'a) -> 'a env -> 'a env -> 'a env
+val dip : env -> Z.t -> env * env
+
+val dup : env -> string * env

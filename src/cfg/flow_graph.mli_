@@ -2,7 +2,7 @@ open Tezla
 
 module Cfg :
   Sig.Flow_graph
-    with type vertex = Adt.stmt Adt.t
+    with type vertex = Adt.stmt
      and type expr = Adt.expr
      and type program = Michelson.Adt.program
 

@@ -1,5 +1,3 @@
-open Batteries
-
 (* let sprint_list ?(first = "[") ?(last = "]") ?(sep = "; ") to_string l =
   let strout = BatIO.output_string () in
   List.print ~first ~last ~sep
@@ -31,45 +29,21 @@ type binop =
   | Geq
   | Compare
 
-type comparable_type =
-  | T_int
-  | T_nat
-  | T_string
-  | T_bytes
-  | T_mutez
-  | T_bool
-  | T_key_hash
-  | T_timestamp
-  | T_address
+type comparable_type = Michelson.Adt.comparable_type_annotated
 
-and typ =
-  | T_comparable of comparable_type t
-  | T_key
-  | T_unit
-  | T_signature
-  | T_option of typ t
-  | T_list of typ t
-  | T_set of comparable_type t
-  | T_operation
-  | T_contract of typ t
-  | T_pair of typ t * typ t
-  | T_or of typ t * typ t
-  | T_lambda of typ t * typ t
-  | T_map of comparable_type t * typ t
-  | T_big_map of comparable_type t * typ t
-  | T_chain_id
+type typ = Michelson.Adt.typ_annotated
 
 and operation =
-  | O_create_contract of Michelson.Adt.program * expr t * expr t * expr t
-  | O_transfer_tokens of expr t * expr t * expr t
-  | O_set_delegate of expr t
-  | O_create_account of expr t * expr t * expr t * expr t
+  | O_create_contract of Michelson.Adt.program * expr * expr * expr
+  | O_transfer_tokens of expr * expr * expr
+  | O_set_delegate of expr
+  | O_create_account of expr * expr * expr * expr
 
 and expr =
-  | E_unop of unop * expr t
-  | E_binop of binop * expr t * expr t
+  | E_unop of unop * expr
+  | E_binop of binop * expr * expr
   | E_ident of string
-  | E_cons of expr t * expr t
+  | E_cons of expr * expr
   | E_int of Z.t
   | E_nat of Z.t
   | E_string of string
@@ -81,128 +55,74 @@ and expr =
   | E_operation of operation
   | E_unit
   | E_bool of bool
-  | E_pair of expr t * expr t
-  | E_left of expr t
-  | E_right of expr t
-  | E_some of expr t
-  | E_none
-  | E_list of expr t list
-  | E_set of expr t list
-  | E_map of (expr t * expr t) list
-  | E_big_map of (expr t * expr t) list
-  | E_mem of expr t * expr t
-  | E_get of expr t * expr t
-  | E_update of expr t * expr t * expr t
-  | E_cast of expr t
-  | E_concat of expr t * expr t
-  | E_slice of expr t * expr t * expr t
-  | E_pack of expr t
-  | E_unpack of typ t * expr t
+  | E_pair of expr * expr
+  | E_left of expr
+  | E_right of expr
+  | E_some of expr
+  | E_none of typ
+  | E_list of typ * expr list
+  | E_set of expr list
+  | E_map of (expr * expr) list
+  | E_big_map of (expr * expr) list
+  | E_mem of expr * expr
+  | E_get of expr * expr
+  | E_update of expr * expr * expr
+  | E_cast of expr
+  | E_concat of expr * expr
+  | E_slice of expr * expr * expr
+  | E_pack of expr
+  | E_unpack of typ * expr
   | E_self
-  | E_contract_of_address of expr t
-  | E_implicit_account of expr t
+  | E_contract_of_address of expr
+  | E_implicit_account of expr
   | E_now
   | E_amount
   | E_balance
-  | E_check_signature of expr t * expr t * expr t
-  | E_blake2b of expr t
-  | E_sha256 of expr t
-  | E_sha512 of expr t
-  | E_hash_key of expr t
+  | E_check_signature of expr * expr * expr
+  | E_blake2b of expr
+  | E_sha256 of expr
+  | E_sha512 of expr
+  | E_hash_key of expr
   | E_steps_to_quota
   | E_source
   | E_sender
-  | E_address_of_contract of expr t
+  | E_address_of_contract of expr
   | E_create_contract_address of operation
-  | E_is_none of expr t
-  | E_lift_option of expr t
-  | E_is_left of expr t
-  | E_lift_or of expr t
-  | E_is_cons of expr t
-  | E_list_hd of expr t
-  | E_list_tl of expr t
-  | E_size of expr t
+  | E_is_none of expr
+  | E_lift_option of expr
+  | E_is_left of expr
+  | E_lift_or of expr
+  | E_is_cons of expr
+  | E_list_hd of expr
+  | E_list_tl of expr
+  | E_size of expr
   | E_bytes of string
-  | E_isnat of expr t
-  | E_int_of_nat of expr t
+  | E_isnat of expr
+  | E_int_of_nat of expr
   | E_chain_id
   | E_create_account_address of operation
   | E_lambda of func
 
 and stmt =
-  | S_seq of stmt t * stmt t
-  | S_var_decl of decl t
-  | S_assign of string * expr t
+  | S_seq of stmt * stmt
+  | S_var_decl of ident
+  | S_assign of string * expr * typ option
   | S_skip
-  | S_if of expr t * stmt t * stmt t
-  | S_while of expr t * stmt t
-  | S_size
-  | S_empty_set of comparable_type
-  | S_empty_map of comparable_type * typ
-  | S_map of expr t * stmt t
-  | S_iter of expr t * stmt t
-  | S_loop of stmt t
-  | S_loop_left of stmt t
-  | S_exec of stmt t * expr t
-  | S_failwith of expr t
+  | S_drop of ident
+  | S_dup of ident
+  | S_if of ident * stmt * stmt
+  | S_if_none of ident * stmt * stmt * ident
+  | S_if_left of ident * stmt * stmt * ident
+  | S_if_cons of ident * stmt * ident * ident * stmt
+  | S_loop of ident * stmt
+  | S_loop_left of ident * stmt
+  | S_map of ident * stmt
+  | S_iter of ident * stmt
+  | S_exec of stmt * ident
+  | S_failwith of ident
   | S_cast
   | S_contract of typ
 
-and _ node_data =
-  | Stmt : stmt -> stmt node_data
-  | Decl : decl -> decl node_data
-  | Expr : expr -> expr node_data
-  | Type : typ -> typ node_data
-  | Comparable_type : comparable_type -> comparable_type node_data
+and func = stmt * ident
 
-and 'a t = { id : int; loc : Michelson.Location.t; data : 'a node_data }
-
-and func = stmt t * expr t
-
-and program = typ t * typ t * func
-
-let counter = ref (-1)
-
-let next_counter () =
-  let () = counter := !counter + 1 in
-  !counter
-
-let create ?(loc = Michelson.Location.Unknown) data =
-  { id = next_counter (); loc; data }
-
-let get_node_data : type a. a t -> a =
- fun n ->
-  match n.data with
-  | Stmt s -> s
-  | Decl d -> d
-  | Expr e -> e
-  | Type t -> t
-  | Comparable_type t -> t
-
-(* let rec stmt_to_string = 
-  let open Printf in
-  function
-  | Cfg_var_decl v ->
-      sprintf "var %s" (get_node_data v)
-  | Cfg_assign (lv, rv) ->
-      sprintf "%s = %s" (to_string lv) (to_string rv)
-  | Cfg_guard e ->
-      sprintf "test %s" (to_string e)
-  | Cfg_jump ->
-      sprintf "jump"
-  | Cfg_call (f, args) ->
-      sprintf "%s (%s)" (to_string f)
-        (sprint_list ~first:"" ~last:"" ~sep:", " to_string args) *)
-let rec expr_to_string (_ : expr) = "" (* TODO: *)
-
-and stmt_to_string (_ : stmt) = "" (* TODO: *)
-
-and to_string : type a. a t -> string =
- fun n ->
-  (* TODO: *)
-  match n.data with
-  | Stmt _ -> stmt_to_string (get_node_data n)
-  | Decl d -> d
-  | Expr e -> expr_to_string e
-  | Type _ -> ""
-  | Comparable_type _ -> ""
+and program = typ * typ * func

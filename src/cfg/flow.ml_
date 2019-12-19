@@ -1,7 +1,7 @@
 open Batteries
 open Tezla
 
-type vertex = Adt.stmt Adt.t
+type vertex = Adt.stmt
 
 type t = {
   nodes : vertex Set.t;
@@ -10,26 +10,26 @@ type t = {
   flow : (vertex * vertex) Set.t;
 }
 
-let rec init n =
+let rec init =
   let open Adt in
-  match get_node_data n with
+  function
   | S_seq (s, _) -> init s
-  | S_var_decl _ | S_assign _ | S_skip | S_size | S_empty_set _
-  | S_empty_map _ | S_map _ | S_cast | S_exec _ | S_failwith _ | S_contract _ ->
+  | ( S_var_decl _ | S_assign _ | S_skip | S_size | S_empty_set _
+    | S_empty_map _ | S_map _ | S_cast | S_exec _ | S_failwith _ | S_contract _
+      ) as n ->
       n
-  | S_iter _ | S_loop _ | S_loop_left _ -> n
-  | S_if _ | S_while _ -> n
+  | (S_iter _ | S_loop _ | S_loop_left _) as n -> n
+  | (S_if _ | S_while _) as n -> n
 
 (* TODO: *)
 
 let final x =
   let open Set.Infix in
   let open Adt in
-  let rec final_rec acc n =
-    match get_node_data n with
+  let rec final_rec acc = function
     | S_if (_, x, y) -> final_rec (final_rec acc x) y
     | S_seq (_, x) -> final_rec acc x
-    | _ -> acc <-- n
+    | n -> acc <-- n
   in
   final_rec Set.empty x
 
@@ -40,7 +40,7 @@ let flow x =
   let open Set.Infix in
   let ht = Hashtbl.create 10 in
   let rec flow_rec (nodes, flow) n =
-    match get_node_data n with
+    match n with
     | S_if (_, x, y) ->
         let flow' = flow <-- (n, init x) <-- (n, init y) in
         flow_rec (flow_rec (nodes, flow') x) y

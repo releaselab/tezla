@@ -3,7 +3,7 @@ open Tezla
 module Common = struct
   type program = Michelson.Adt.program
 
-  type vertex = Adt.stmt Adt.t
+  type vertex = { id : int; stmt : Adt.stmt }
 
   type expr = Adt.expr
 

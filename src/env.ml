@@ -1,80 +1,85 @@
-type 'a env = Failed | Stack of 'a list
+module M = Map.Make (String)
+module S = Functional_stack
 
-let empty_env = Stack []
+type abstract_pos = Z.t
 
-let var_counter = ref (-1)
+type env = Failed | Stack of string Functional_stack.t * abstract_pos M.t
+
+let empty_env = Stack (S.empty, M.empty)
+
+let failed_env = Failed
+
+let var_counter = ref Z.minus_one
 
 let next_var () =
-  let () = var_counter := !var_counter + 1 in
-  Printf.sprintf "v%d" !var_counter
+  let () = var_counter := Z.(!var_counter + one) in
+  Printf.sprintf "v%s" (Z.to_string !var_counter)
 
-(* let push ?name x =
-  let v = match name with None -> next_var () | Some s -> s in
-  List.cons (x, v) *)
+let pos_counter = ref Z.minus_one
+
+let next_pos () =
+  let () = pos_counter := Z.(!pos_counter + one) in
+  !pos_counter
+
+let add_to_map x = M.add x (next_pos ())
 
 exception Stack_failed
 
-let stack_or_failed = function Failed -> raise Stack_failed | Stack s -> s
+let stack_or_failed = function
+  | Failed -> raise Stack_failed
+  | Stack (s, m) -> (s, m)
 
-let push x env = Stack (List.cons x (stack_or_failed env))
+let nth n env =
+  let s, m = stack_or_failed env in
+  S.find (fun v -> M.find v m = n) s
+
+let push x env =
+  let s, m = stack_or_failed env in
+  Stack (S.push x s, add_to_map x m)
 
 let pop env =
-  let env' = stack_or_failed env in
-  (List.hd env', Stack (List.tl env'))
+  let s, m = stack_or_failed env in
+  let x, s' = S.pop s in
+  let m' = M.remove x m in
+  (x, Stack (s', m'))
 
-let drop env = Stack (List.tl (stack_or_failed env))
+let drop env =
+  let s, m = stack_or_failed env in
+  let x, s' = S.pop s in
+  let m' = M.remove x m in
+  Stack (s', m')
 
-let peek env = List.hd (stack_or_failed env)
+let peek env =
+  let s, _ = stack_or_failed env in
+  S.peek s
 
 let swap env =
-  match stack_or_failed env with
-  | h :: h' :: t -> Stack (h' :: h :: t)
-  | l -> Stack l
+  let s, m = stack_or_failed env in
+  Stack (S.swap s, m)
 
 let dig env n =
-  if Z.(n = ~$0) then env
-  else if Z.(n = ~$1) then swap env
-  else
-    let rec aux (l_h, l_t) n =
-      match l_t with
-      | h :: t when Z.(n = ~$0) -> ((h :: l_h) @ t, [])
-      | h :: t -> aux (l_h @ [ h ], t) Z.(n - one)
-      | [] -> ([], [])
-    in
-    Stack (fst (aux ([], stack_or_failed env) n))
+  let s, m = stack_or_failed env in
+  Stack (S.dig s n, m)
 
 let dug env n =
-  if Z.(n = ~$0) then env
-  else if Z.(n = ~$1) then swap env
-  else
-    match stack_or_failed env with
-    | [] -> env
-    | top :: t ->
-        let rec aux (l_h, l_t) n' =
-          match l_t with
-          | [] -> (top :: l_t, [])
-          | _ when Z.(n' = ~$0) -> (l_h @ (top :: l_t), [])
-          | h :: t -> aux (l_h @ [ h ], t) Z.(n' - ~$1)
-        in
-        Stack (fst (aux ([], t) n))
+  let s, m = stack_or_failed env in
+  Stack (S.dug s n, m)
 
 let dip env n =
-  if Z.(n = ~$0) then ([], env)
+  if Z.(n = ~$0) then (empty_env, env)
   else
     let rec aux (acc, env') n' =
       if Z.(n' = ~$0) then (acc, env')
       else
         let x, env'' = pop env' in
-        aux (x :: acc, env'') Z.(n' - ~$1)
+        let acc' = push x acc in
+        aux (acc', env'') Z.(n' - ~$1)
     in
-    aux ([], env) n
+    aux (empty_env, env) n
+
+let dup env =
+  let x = peek env in
+  let env' = push x env in
+  (x, env')
 
 (* let rename v = function (x, _) :: t -> (x, v) :: t | l -> l *)
-
-let join string_to_expr env_1 env_2 =
-  match (env_1, env_2) with
-  | Failed, Failed -> Failed
-  | Failed, Stack env | Stack env, Failed ->
-      Stack (List.map (fun _ -> string_to_expr (next_var ())) env)
-  | Stack env_1', Stack env_2' ->
-      Stack (List.map2 (fun _ _ -> string_to_expr (next_var ())) env_1' env_2')
