@@ -1,27 +1,3 @@
-type ident = string
-
-type decl = ident
-
-type unop = Fst | Snd | Abs | Neg | Not
-
-type binop =
-  | Add
-  | Sub
-  | Mul
-  | Div
-  | Eq
-  | ShiftL
-  | ShiftR
-  | And
-  | Or
-  | Xor
-  | Neq
-  | Lt
-  | Gt
-  | Leq
-  | Geq
-  | Compare
-
 type comparable_type = Michelson.Adt.comparable_type_annotated
 
 type typ = Michelson.Adt.typ_annotated
@@ -33,8 +9,27 @@ and operation =
   | O_create_account of expr * expr * expr * expr
 
 and expr =
-  | E_unop of unop * expr
-  | E_binop of binop * expr * expr
+  | E_car of expr
+  | E_cdr of expr
+  | E_abs of expr
+  | E_neg of expr
+  | E_not of expr
+  | E_add of expr * expr
+  | E_sub of expr * expr
+  | E_mul of expr * expr
+  | E_div of expr * expr
+  | E_shiftL of expr * expr
+  | E_shiftR of expr * expr
+  | E_and of expr * expr
+  | E_or of expr * expr
+  | E_xor of expr * expr
+  | E_eq of expr
+  | E_neq of expr
+  | E_lt of expr
+  | E_gt of expr
+  | E_leq of expr
+  | E_geq of expr
+  | E_compare of expr * expr
   | E_ident of string
   | E_cons of expr * expr
   | E_int of Z.t
@@ -44,7 +39,7 @@ and expr =
   | E_signature of string
   | E_key of string
   | E_key_hash of string
-  | E_mutez of string
+  | E_mutez of Z.t
   | E_operation of operation
   | E_unit
   | E_bool of bool
@@ -81,11 +76,8 @@ and expr =
   | E_sender
   | E_address_of_contract of expr
   | E_create_contract_address of operation
-  | E_is_none of expr
   | E_lift_option of expr
-  | E_is_left of expr
   | E_lift_or of expr
-  | E_is_cons of expr
   | E_list_hd of expr
   | E_list_tl of expr
   | E_size of expr
@@ -94,28 +86,28 @@ and expr =
   | E_int_of_nat of expr
   | E_chain_id
   | E_create_account_address of operation
-  | E_lambda of func
+  | E_lambda of typ * typ * func
+  | E_exec of string * string
 
 and stmt =
   | S_seq of stmt * stmt
-  | S_var_decl of ident
+  | S_var_decl of string
   | S_assign of string * expr * typ option
   | S_skip
-  | S_drop of ident
-  | S_dup of ident
-  | S_if of ident * stmt * stmt
-  | S_if_none of ident * stmt * stmt * ident
-  | S_if_left of ident * stmt * stmt * ident
-  | S_if_cons of ident * stmt * ident * ident * stmt
-  | S_loop of ident * stmt
-  | S_loop_left of ident * stmt
-  | S_map of ident * stmt
-  | S_iter of ident * stmt
-  | S_exec of stmt * ident
-  | S_failwith of ident
+  | S_drop of string
+  | S_swap
+  | S_if of string * stmt * stmt
+  | S_if_none of string * stmt * stmt * string
+  | S_if_left of string * stmt * stmt * string
+  | S_if_cons of string * stmt * string * string * stmt
+  | S_loop of string * stmt
+  | S_loop_left of string * stmt
+  | S_map of string * stmt
+  | S_iter of string * stmt
+  | S_failwith of string
   | S_cast
   | S_contract of typ
 
-and func = stmt * ident
+and func = stmt * string
 
 and program = typ * typ * func

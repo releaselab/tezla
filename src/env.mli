@@ -1,4 +1,4 @@
-type env
+type env = Failed | Stack of string Functional_stack.t
 
 val next_var : unit -> string
 
@@ -20,6 +20,6 @@ val dig : env -> Z.t -> env
 
 val dug : env -> Z.t -> env
 
-val dip : env -> Z.t -> env * env
+val dip : env -> Z.t -> string list * env
 
 val dup : env -> string * env

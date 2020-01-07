@@ -1,4 +1,4 @@
-type 'a t
+type 'a t = 'a list
 
 val empty : 'a t
 
