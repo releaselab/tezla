@@ -88,14 +88,18 @@ and expr =
   | E_create_account_address of operation
   | E_lambda of typ * typ * func
   | E_exec of string * string
+  | E_dup of string
 
 and stmt =
   | S_seq of stmt * stmt
-  | S_var_decl of string
-  | S_assign of string * expr * typ option
+  | S_var_decl of string * typ option
+  | S_assign of string * expr
+  | S_decl_assign of string * expr * typ option
   | S_skip
-  | S_drop of string
+  | S_drop of Z.t
   | S_swap
+  | S_dig
+  | S_dug
   | S_if of string * stmt * stmt
   | S_if_none of string * stmt * stmt * string
   | S_if_left of string * stmt * stmt * string

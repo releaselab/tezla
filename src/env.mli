@@ -1,6 +1,6 @@
 type env = Failed | Stack of string Functional_stack.t
 
-val next_var : unit -> string
+val next_var : Z.t ref -> string
 
 val empty_env : env
 

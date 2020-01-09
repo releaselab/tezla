@@ -44,7 +44,17 @@ let rec typ ppf =
       fprintf ppf "(big_map %a %a)" comparable_type (fst t_1) typ (fst t_2)
   | T_chain_id -> fprintf ppf "chain_id"
 
-let rec expr ppf = function
+let rec operation ppf = function
+  | O_create_account (e_1, e_2, e_3, e_4) ->
+      fprintf ppf "CREATE_ACCOUNT %a %a %a %a" expr e_1 expr e_2 expr e_3 expr
+        e_4
+  | O_create_contract (_, e_1, e_2, e_3) ->
+      fprintf ppf "CREATE_CONTRACT {...} %a %a %a" expr e_1 expr e_2 expr e_3
+  | O_set_delegate e -> fprintf ppf "SET_DELEGATE %a" expr e
+  | O_transfer_tokens (e_1, e_2, e_3) ->
+      fprintf ppf "TRANSFER_TOKENS %a %a %a" expr e_1 expr e_2 expr e_3
+
+and expr ppf = function
   | E_car e -> fprintf ppf "CAR %a" expr e
   | E_cdr e -> fprintf ppf "CDR %a" expr e
   | E_abs e -> fprintf ppf "ABS %a" expr e
@@ -99,10 +109,14 @@ let rec expr ppf = function
   | E_get (e_1, e_2) -> fprintf ppf "GET %a %a" expr e_1 expr e_2
   | E_concat (e_1, e_2) -> fprintf ppf "CONCAT %a %a" expr e_1 expr e_2
   | E_list (_, l) | E_set l ->
-      pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "; ") expr ppf l
+      let pp_l = pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "; ") expr in
+      fprintf ppf "{%a}" pp_l l
   | E_map l | E_big_map l ->
       let print_elem ppf (k, v) = fprintf ppf "Elt %a %a" expr k expr v in
-      pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "; ") print_elem ppf l
+      let pp_l =
+        pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "; ") print_elem
+      in
+      fprintf ppf "{%a}" pp_l l
   | E_update (e_1, e_2, e_3) ->
       fprintf ppf "UPDATE %a %a %a" expr e_1 expr e_2 expr e_3
   | E_slice (e_1, e_2, e_3) ->
@@ -131,51 +145,53 @@ let rec expr ppf = function
   | E_exec (e_1, e_2) -> fprintf ppf "EXEC %s %s" e_1 e_2
   | E_create_contract_address _ -> (* TODO: *) fprintf ppf ""
   | E_create_account_address _ -> (* TODO: *) fprintf ppf ""
-  | E_operation _ -> (* TODO: *) fprintf ppf ""
+  | E_operation o -> operation ppf o
+  | E_dup s -> fprintf ppf "DUP %s" s
 
 let rec stmt i ppf = function
-  | S_seq (s_1, s_2) ->
-      fprintf ppf "@[<%d>%a;]@\n%a" i (stmt i) s_1 (stmt i) s_2
-  | S_var_decl s -> fprintf ppf "var %s" s
-  | S_assign (s, e, t) -> (
-      match t with
-      | None -> fprintf ppf "var %s := %a" s expr e
-      | Some t -> fprintf ppf "var %s : %a := %a" s typ (fst t) expr e )
+  | S_seq (S_skip, s) | S_seq (s, S_skip) -> stmt i ppf s
+  | S_seq (s_1, s_2) -> fprintf ppf "%a;\n%a" (stmt i) s_1 (stmt i) s_2
+  | S_var_decl (s, None) -> fprintf ppf "var %s" s
+  | S_var_decl (s, Some t) -> fprintf ppf "var %s : %a" s typ (fst t)
+  | S_assign (s, e) -> fprintf ppf "%s := %a" s expr e
+  | S_decl_assign (s, e, None) -> fprintf ppf "var %s := %a" s expr e
+  | S_decl_assign (s, e, Some t) ->
+      fprintf ppf "var %s : %a := %a" s typ (fst t) expr e
   | S_skip -> fprintf ppf ""
-  | S_drop s -> fprintf ppf "DROP %s" s
+  | S_drop n ->
+      if Z.(n = one) then fprintf ppf "DROP"
+      else fprintf ppf "DROP %a" Z.pp_print n
   | S_swap -> fprintf ppf "SWAP"
+  | S_dig -> fprintf ppf "DIG"
+  | S_dug -> fprintf ppf "DUG"
   | S_if (s, s_1, s_2) ->
       let i' = i + 1 in
-      fprintf ppf "IF %s\n{\n@[<%d>%a]@\n}\n{\n@[<%d>%a]@\n}" s i' (stmt i') s_1
-        i' (stmt i') s_2
+      fprintf ppf "IF %s\n{\n%a\n}\n{\n%a\n}" s (stmt i') s_1 (stmt i') s_2
   | S_if_none (s, s_1, s_2, _) ->
       let i' = i + 1 in
-      fprintf ppf "IF_NONE %s\n{\n@[<%d>%a]@\n}\n{\n@[<%d>%a]@\n}" s i'
-        (stmt i') s_1 i' (stmt i') s_2
+      fprintf ppf "IF_NONE %s\n{\n%a\n}\n{\n%a\n}" s (stmt i') s_1 (stmt i') s_2
   | S_if_left (s, s_1, s_2, _) ->
       let i' = i + 1 in
-      fprintf ppf "IF_LEFT %s\n{\n@[<%d>%a]@\n}\n{\n@[<%d>%a]@\n}" s i'
-        (stmt i') s_1 i' (stmt i') s_2
+      fprintf ppf "IF_LEFT %s\n{\n%a\n}\n{\n%a\n}" s (stmt i') s_1 (stmt i') s_2
   | S_if_cons (s, s_1, _, _, s_2) ->
       let i' = i + 1 in
-      fprintf ppf "IF_CONS %s\n{\n@[<%d>%a]@\n}\n{\n@[<%d>%a]@\n}" s i'
-        (stmt i') s_1 i' (stmt i') s_2
+      fprintf ppf "IF_CONS %s\n{\n%a\n}\n{\n%a\n}" s (stmt i') s_1 (stmt i') s_2
   | S_loop (s, b) ->
       let i' = i + 1 in
-      fprintf ppf "LOOP %s\n{\n@[<%d>%a]@\n}" s i' (stmt i') b
+      fprintf ppf "LOOP %s\n{\n%a\n}" s (stmt i') b
   | S_loop_left (s, b) ->
       let i' = i + 1 in
-      fprintf ppf "LOOP_LEFT %s\n{\n@[<%d>%a]@\n}" s i' (stmt i') b
+      fprintf ppf "LOOP_LEFT %s\n{\n%a\n}" s (stmt i') b
   | S_map (s, b) ->
       let i' = i + 1 in
-      fprintf ppf "MAP %s\n{\n@[<%d>%a]@\n}" s i' (stmt i') b
+      fprintf ppf "MAP %s\n{\n%a\n}" s (stmt i') b
   | S_iter (s, b) ->
       let i' = i + 1 in
-      fprintf ppf "ITER %s\n{\n@[<%d>%a]@\n}" s i' (stmt i') b
+      fprintf ppf "ITER %s\n{\n%a\n}" s (stmt i') b
   | S_failwith s -> fprintf ppf "FAILWITH %s" s
   | S_cast -> fprintf ppf "CAST"
   | S_contract t -> fprintf ppf "CONTRACT %a" typ (fst t)
 
-let func ppf (b, v) = fprintf ppf "@[<1>%s => {\n%a\n}]@" v (stmt 2) b
+let func ppf (b, v) = fprintf ppf "@[<1>%s => {\n%a\n}" v (stmt 2) b
 
 let program ppf (_, _, b) = func ppf b

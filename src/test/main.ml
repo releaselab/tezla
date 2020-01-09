@@ -31,3 +31,10 @@ let () =
       with _ as e ->
         Printf.printf "Test %d: not OK | %s\n" i (Printexc.to_string e))
     tests
+
+let () =
+  try
+    let adt = Parsing_utils.parse_with_error (path ^ "test9.tz") in
+    let p = Converter.convert_program adt in
+    Pp.stmt 1 Format.std_formatter p
+  with _ -> ()

@@ -6,9 +6,7 @@ let empty_env = Stack S.empty
 
 let failed_env = Failed
 
-let var_counter = ref Z.minus_one
-
-let next_var () =
+let next_var var_counter =
   let () = var_counter := Z.(!var_counter + one) in
   Printf.sprintf "v%s" (Z.to_string !var_counter)
 
