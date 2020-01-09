@@ -16,6 +16,20 @@ let () =
     Printf.printf "Test empty_code: OK\n"
   with _ -> Printf.printf "Test empty_code: not OK\n"
 
+let () =
+  try
+    let adt = Parsing_utils.parse_with_error (path ^ "loop_left.tz") in
+    let _ = Converter.convert_program adt in
+    Printf.printf "Test loop_left: OK\n"
+  with _ -> Printf.printf "Test loop_left: not OK\n"
+
+let () =
+  try
+    let adt = Parsing_utils.parse_with_error (path ^ "map.tz") in
+    let _ = Converter.convert_program adt in
+    Printf.printf "Test map: OK\n"
+  with _ -> Printf.printf "Test map: not OK\n"
+
 let tests = [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9 ]
 
 let () =
@@ -34,7 +48,7 @@ let () =
 
 let () =
   try
-    let adt = Parsing_utils.parse_with_error (path ^ "test9.tz") in
+    let adt = Parsing_utils.parse_with_error (path ^ "loop_left.tz") in
     let p = Converter.convert_program adt in
     Pp.stmt 1 Format.std_formatter p
   with _ -> ()

@@ -135,8 +135,8 @@ and expr ppf = function
   | E_size e -> fprintf ppf "SIZE %a" expr e
   | E_lift_option e -> fprintf ppf "lift_option %a" expr e
   | E_lift_or e -> fprintf ppf "lift_or %a" expr e
-  | E_list_hd e -> fprintf ppf "list_hd %a" expr e
-  | E_list_tl e -> fprintf ppf "list_tl %a" expr e
+  | E_hd e -> fprintf ppf "hd %a" expr e
+  | E_tl e -> fprintf ppf "tl %a" expr e
   | E_isnat e -> fprintf ppf "ISNAT %a" expr e
   | E_int_of_nat e -> fprintf ppf "INT %a" expr e
   | E_chain_id -> fprintf ppf "CHAIN_ID"

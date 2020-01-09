@@ -222,8 +222,8 @@ and inst_to_stmt counter env (i, a) =
   | I_if_cons (i_t, i_f) ->
       let x, env' = pop env in
       let env_f = env' in
-      let hd = E_list_hd (E_ident x) in
-      let tl = E_list_tl (E_ident x) in
+      let hd = E_hd (E_ident x) in
+      let tl = E_tl (E_ident x) in
       let v_hd, assign_hd = create_assign hd in
       let v_tl, assign_tl = create_assign tl in
       let env_t = push v_hd (push v_tl env_f) in
@@ -248,16 +248,23 @@ and inst_to_stmt counter env (i, a) =
       let v, assign = create_assign (E_big_map []) in
       (assign, push v env)
   | I_map b ->
-      let body, _ = inst_to_stmt counter empty_env b in
       let x, env' = pop env in
-      (S_map (x, body), env')
+      let v, assign = create_assign (E_hd (E_ident x)) in
+      let assign' = S_assign (x, E_tl (E_ident x)) in
+      let body, env' = inst_to_stmt counter (push v env') b in
+      let env', decls, assigns = join_loop counter env' in
+      let body = S_seq (S_seq (assign, S_seq (body, assign')), assigns) in
+      let s = S_seq (decls, S_map (x, body)) in
+      (s, env')
   | I_iter b ->
       let x, env' = pop env in
-      let v, assign = create_assign (E_list_hd (E_ident x)) in
-      let assign' = S_assign (x, E_list_tl (E_ident x)) in
+      let v, assign = create_assign (E_hd (E_ident x)) in
       let body, env' = inst_to_stmt counter (push v env') b in
-      let body = S_seq (assign, S_seq (body, assign')) in
-      (S_iter (x, body), env')
+      let assign' = S_assign (x, E_tl (E_ident x)) in
+      let env', decls, assigns = join_loop counter env' in
+      let body = S_seq (S_seq (assign, S_seq (body, assign')), assigns) in
+      let s = S_seq (decls, S_iter (x, body)) in
+      (s, env')
   | I_mem ->
       let elt, env' = pop env in
       let set, env' = pop env' in

@@ -78,8 +78,8 @@ and expr =
   | E_create_contract_address of operation
   | E_lift_option of expr
   | E_lift_or of expr
-  | E_list_hd of expr
-  | E_list_tl of expr
+  | E_hd of expr
+  | E_tl of expr
   | E_size of expr
   | E_bytes of string
   | E_isnat of expr
