@@ -2,93 +2,86 @@ type comparable_type = Michelson.Adt.comparable_type_annotated
 
 type typ = Michelson.Adt.typ_annotated
 
+type data = Michelson.Adt.data
+
 type operation =
-  | O_create_contract of Michelson.Adt.program * expr * expr * expr
-  | O_transfer_tokens of expr * expr * expr
-  | O_set_delegate of expr
-  | O_create_account of expr * expr * expr * expr
+  | O_create_contract of Michelson.Adt.program * string * string * string
+  | O_transfer_tokens of string * string * string
+  | O_set_delegate of string
+  | O_create_account of string * string * string * string
 
 and expr =
-  | E_car of expr
-  | E_cdr of expr
-  | E_abs of expr
-  | E_neg of expr
-  | E_not of expr
-  | E_add of expr * expr
-  | E_sub of expr * expr
-  | E_mul of expr * expr
-  | E_div of expr * expr
-  | E_shiftL of expr * expr
-  | E_shiftR of expr * expr
-  | E_and of expr * expr
-  | E_or of expr * expr
-  | E_xor of expr * expr
-  | E_eq of expr
-  | E_neq of expr
-  | E_lt of expr
-  | E_gt of expr
-  | E_leq of expr
-  | E_geq of expr
-  | E_compare of expr * expr
+  | E_push of data
+  | E_car of string
+  | E_cdr of string
+  | E_abs of string
+  | E_neg of string
+  | E_not of string
+  | E_add of string * string
+  | E_sub of string * string
+  | E_mul of string * string
+  | E_div of string * string
+  | E_shiftL of string * string
+  | E_shiftR of string * string
+  | E_and of string * string
+  | E_or of string * string
+  | E_xor of string * string
+  | E_eq of string
+  | E_neq of string
+  | E_lt of string
+  | E_gt of string
+  | E_leq of string
+  | E_geq of string
+  | E_compare of string * string
   | E_ident of string
-  | E_cons of expr * expr
-  | E_int of Z.t
-  | E_nat of Z.t
-  | E_string of string
-  | E_timestamp of string
-  | E_signature of string
-  | E_key of string
-  | E_key_hash of string
-  | E_mutez of Z.t
+  | E_cons of string * string
   | E_operation of operation
   | E_unit
-  | E_bool of bool
-  | E_pair of expr * expr
-  | E_left of expr
-  | E_right of expr
-  | E_some of expr
+  | E_pair of string * string
+  | E_left of string
+  | E_right of string
+  | E_some of string
   | E_none of typ
-  | E_list of typ * expr list
-  | E_set of expr list
-  | E_map of (expr * expr) list
-  | E_big_map of (expr * expr) list
-  | E_mem of expr * expr
-  | E_get of expr * expr
-  | E_update of expr * expr * expr
-  | E_cast of expr
-  | E_concat of expr * expr
-  | E_slice of expr * expr * expr
-  | E_pack of expr
-  | E_unpack of typ * expr
+  | E_mem of string * string
+  | E_get of string * string
+  | E_update of string * string * string
+  | E_cast of string
+  | E_concat of string * string
+  | E_slice of string * string * string
+  | E_pack of string
+  | E_unpack of typ * string
   | E_self
-  | E_contract_of_address of expr
-  | E_implicit_account of expr
+  | E_contract_of_address of string
+  | E_implicit_account of string
   | E_now
   | E_amount
   | E_balance
-  | E_check_signature of expr * expr * expr
-  | E_blake2b of expr
-  | E_sha256 of expr
-  | E_sha512 of expr
-  | E_hash_key of expr
+  | E_check_signature of string * string * string
+  | E_blake2b of string
+  | E_sha256 of string
+  | E_sha512 of string
+  | E_hash_key of string
   | E_steps_to_quota
   | E_source
   | E_sender
-  | E_address_of_contract of expr
+  | E_address_of_contract of string
   | E_create_contract_address of operation
-  | E_lift_option of expr
-  | E_lift_or of expr
-  | E_hd of expr
-  | E_tl of expr
-  | E_size of expr
-  | E_bytes of string
-  | E_isnat of expr
-  | E_int_of_nat of expr
+  | E_lift_option of string
+  | E_lift_or of string
+  | E_hd of string
+  | E_tl of string
+  | E_size of string
+  | E_isnat of string
+  | E_int_of_nat of string
   | E_chain_id
   | E_create_account_address of operation
   | E_lambda of typ * typ * func
   | E_exec of string * string
   | E_dup of string
+  | E_nil of typ
+  | E_empty_set of comparable_type
+  | E_empty_map of comparable_type * typ
+  | E_empty_big_map of comparable_type * typ
 
 and stmt =
   | S_seq of stmt * stmt

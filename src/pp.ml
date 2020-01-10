@@ -44,86 +44,100 @@ let rec typ ppf =
       fprintf ppf "(big_map %a %a)" comparable_type (fst t_1) typ (fst t_2)
   | T_chain_id -> fprintf ppf "chain_id"
 
-let rec operation ppf = function
-  | O_create_account (e_1, e_2, e_3, e_4) ->
-      fprintf ppf "CREATE_ACCOUNT %a %a %a %a" expr e_1 expr e_2 expr e_3 expr
-        e_4
-  | O_create_contract (_, e_1, e_2, e_3) ->
-      fprintf ppf "CREATE_CONTRACT {...} %a %a %a" expr e_1 expr e_2 expr e_3
-  | O_set_delegate e -> fprintf ppf "SET_DELEGATE %a" expr e
-  | O_transfer_tokens (e_1, e_2, e_3) ->
-      fprintf ppf "TRANSFER_TOKENS %a %a %a" expr e_1 expr e_2 expr e_3
-
-and expr ppf = function
-  | E_car e -> fprintf ppf "CAR %a" expr e
-  | E_cdr e -> fprintf ppf "CDR %a" expr e
-  | E_abs e -> fprintf ppf "ABS %a" expr e
-  | E_neg e -> fprintf ppf "NEG %a" expr e
-  | E_not e -> fprintf ppf "NOT %a" expr e
-  | E_eq e -> fprintf ppf "EQ %a" expr e
-  | E_neq e -> fprintf ppf "NEQ %a" expr e
-  | E_lt e -> fprintf ppf "LT %a" expr e
-  | E_gt e -> fprintf ppf "GT %a" expr e
-  | E_leq e -> fprintf ppf "LEQ %a" expr e
-  | E_geq e -> fprintf ppf "GEQ %a" expr e
-  | E_left e -> fprintf ppf "LEFT %a" expr e
-  | E_right e -> fprintf ppf "RIGHT %a" expr e
-  | E_some e -> fprintf ppf "SOME %a" expr e
-  | E_cast e -> fprintf ppf "CAST %a" expr e
-  | E_pack e -> fprintf ppf "PACK %a" expr e
-  | E_contract_of_address e -> fprintf ppf "CONTRACT %a" expr e
-  | E_implicit_account e -> fprintf ppf "IMPLICIT_ACCOUNT %a" expr e
-  | E_blake2b e -> fprintf ppf "BLAKE2B %a" expr e
-  | E_sha256 e -> fprintf ppf "SHA256 %a" expr e
-  | E_sha512 e -> fprintf ppf "SHA512 %a" expr e
-  | E_hash_key e -> fprintf ppf "HASH_KEY %a" expr e
-  | E_ident s
-  | E_string s
-  | E_timestamp s
-  | E_signature s
-  | E_key s
-  | E_key_hash s
-  | E_bytes s ->
+let rec data ppf =
+  let open Michelson.Adt in
+  function
+  | D_int n | D_nat n | D_mutez n -> Z.pp_print ppf n
+  | D_string s
+  | D_timestamp s
+  | D_signature s
+  | D_key s
+  | D_key_hash s
+  | D_bytes s
+  | D_address s ->
       fprintf ppf "%s" s
-  | E_int n | E_nat n | E_mutez n -> fprintf ppf "%a" Z.pp_print n
-  | E_unit -> fprintf ppf "()"
-  | E_bool b ->
+  | D_unit -> fprintf ppf "()"
+  | D_bool b ->
       fprintf ppf "%a"
         (fun ppf -> function true -> fprintf ppf "True"
           | false -> fprintf ppf "False")
         b
-  | E_none t -> fprintf ppf "NONE %a" typ (fst t)
-  | E_add (e_1, e_2) -> fprintf ppf "ADD %a %a" expr e_1 expr e_2
-  | E_sub (e_1, e_2) -> fprintf ppf "SUB %a %a" expr e_1 expr e_2
-  | E_mul (e_1, e_2) -> fprintf ppf "MUL %a %a" expr e_1 expr e_2
-  | E_div (e_1, e_2) -> fprintf ppf "EDIV %a %a" expr e_1 expr e_2
-  | E_shiftL (e_1, e_2) -> fprintf ppf "LSL %a %a" expr e_1 expr e_2
-  | E_shiftR (e_1, e_2) -> fprintf ppf "LSR %a %a" expr e_1 expr e_2
-  | E_and (e_1, e_2) -> fprintf ppf "AND %a %a" expr e_1 expr e_2
-  | E_or (e_1, e_2) -> fprintf ppf "OR %a %a" expr e_1 expr e_2
-  | E_xor (e_1, e_2) -> fprintf ppf "XOR %a %a" expr e_1 expr e_2
-  | E_compare (e_1, e_2) -> fprintf ppf "COMPARE %a %a" expr e_1 expr e_2
-  | E_cons (e_1, e_2) -> fprintf ppf "CONS %a %a" expr e_1 expr e_2
-  | E_pair (e_1, e_2) -> fprintf ppf "PAIR %a %a" expr e_1 expr e_2
-  | E_mem (e_1, e_2) -> fprintf ppf "MEM %a %a" expr e_1 expr e_2
-  | E_get (e_1, e_2) -> fprintf ppf "GET %a %a" expr e_1 expr e_2
-  | E_concat (e_1, e_2) -> fprintf ppf "CONCAT %a %a" expr e_1 expr e_2
-  | E_list (_, l) | E_set l ->
-      let pp_l = pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "; ") expr in
-      fprintf ppf "{%a}" pp_l l
-  | E_map l | E_big_map l ->
-      let print_elem ppf (k, v) = fprintf ppf "Elt %a %a" expr k expr v in
+  | D_pair (d_1, d_2) -> fprintf ppf "Pair %a %a" data d_1 data d_2
+  | D_left d -> fprintf ppf "Left %a" data d
+  | D_right d -> fprintf ppf "Right %a" data d
+  | D_some d -> fprintf ppf "Some %a" data d
+  | D_none _ -> fprintf ppf "None"
+  | D_list (_, dl) ->
+      let pp_l = pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "; ") data in
+      fprintf ppf "{%a}" pp_l dl
+  | D_set (_, dl) ->
+      let pp_l = pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "; ") data in
+      fprintf ppf "{%a}" pp_l dl
+  | D_map dl ->
+      let print_elem ppf (k, v) = fprintf ppf "Elt %a %a" data k data v in
       let pp_l =
         pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "; ") print_elem
       in
-      fprintf ppf "{%a}" pp_l l
-  | E_update (e_1, e_2, e_3) ->
-      fprintf ppf "UPDATE %a %a %a" expr e_1 expr e_2 expr e_3
-  | E_slice (e_1, e_2, e_3) ->
-      fprintf ppf "SLICE %a %a %a" expr e_1 expr e_2 expr e_3
+      fprintf ppf "{%a}" pp_l dl
+
+(* | D_instruction of inst *)
+
+let rec operation ppf = function
+  | O_create_account (e_1, e_2, e_3, e_4) ->
+      fprintf ppf "CREATE_ACCOUNT %s %s %s %s" e_1 e_2 e_3 e_4
+  | O_create_contract (_, e_1, e_2, e_3) ->
+      fprintf ppf "CREATE_CONTRACT {...} %s %s %s" e_1 e_2 e_3
+  | O_set_delegate e -> fprintf ppf "SET_DELEGATE %s" e
+  | O_transfer_tokens (e_1, e_2, e_3) ->
+      fprintf ppf "TRANSFER_TOKENS %s %s %s" e_1 e_2 e_3
+
+and expr ppf = function
+  | E_push d -> fprintf ppf "PUSH %a" data d
+  | E_car e -> fprintf ppf "CAR %s" e
+  | E_cdr e -> fprintf ppf "CDR %s" e
+  | E_abs e -> fprintf ppf "ABS %s" e
+  | E_neg e -> fprintf ppf "NEG %s" e
+  | E_not e -> fprintf ppf "NOT %s" e
+  | E_eq e -> fprintf ppf "EQ %s" e
+  | E_neq e -> fprintf ppf "NEQ %s" e
+  | E_lt e -> fprintf ppf "LT %s" e
+  | E_gt e -> fprintf ppf "GT %s" e
+  | E_leq e -> fprintf ppf "LEQ %s" e
+  | E_geq e -> fprintf ppf "GEQ %s" e
+  | E_left e -> fprintf ppf "LEFT %s" e
+  | E_right e -> fprintf ppf "RIGHT %s" e
+  | E_some e -> fprintf ppf "SOME %s" e
+  | E_cast e -> fprintf ppf "CAST %s" e
+  | E_pack e -> fprintf ppf "PACK %s" e
+  | E_contract_of_address e -> fprintf ppf "CONTRACT %s" e
+  | E_implicit_account e -> fprintf ppf "IMPLICIT_ACCOUNT %s" e
+  | E_blake2b e -> fprintf ppf "BLAKE2B %s" e
+  | E_sha256 e -> fprintf ppf "SHA256 %s" e
+  | E_sha512 e -> fprintf ppf "SHA512 %s" e
+  | E_hash_key e -> fprintf ppf "HASH_KEY %s" e
+  | E_ident s -> fprintf ppf "%s" s
+  | E_unit -> fprintf ppf "UNIT"
+  | E_none t -> fprintf ppf "NONE %a" typ (fst t)
+  | E_add (e_1, e_2) -> fprintf ppf "ADD %s %s" e_1 e_2
+  | E_sub (e_1, e_2) -> fprintf ppf "SUB %s %s" e_1 e_2
+  | E_mul (e_1, e_2) -> fprintf ppf "MUL %s %s" e_1 e_2
+  | E_div (e_1, e_2) -> fprintf ppf "EDIV %s %s" e_1 e_2
+  | E_shiftL (e_1, e_2) -> fprintf ppf "LSL %s %s" e_1 e_2
+  | E_shiftR (e_1, e_2) -> fprintf ppf "LSR %s %s" e_1 e_2
+  | E_and (e_1, e_2) -> fprintf ppf "AND %s %s" e_1 e_2
+  | E_or (e_1, e_2) -> fprintf ppf "OR %s %s" e_1 e_2
+  | E_xor (e_1, e_2) -> fprintf ppf "XOR %s %s" e_1 e_2
+  | E_compare (e_1, e_2) -> fprintf ppf "COMPARE %s %s" e_1 e_2
+  | E_cons (e_1, e_2) -> fprintf ppf "CONS %s %s" e_1 e_2
+  | E_pair (e_1, e_2) -> fprintf ppf "PAIR %s %s" e_1 e_2
+  | E_mem (e_1, e_2) -> fprintf ppf "MEM %s %s" e_1 e_2
+  | E_get (e_1, e_2) -> fprintf ppf "GET %s %s" e_1 e_2
+  | E_concat (e_1, e_2) -> fprintf ppf "CONCAT %s %s" e_1 e_2
+  | E_update (e_1, e_2, e_3) -> fprintf ppf "UPDATE %s %s %s" e_1 e_2 e_3
+  | E_slice (e_1, e_2, e_3) -> fprintf ppf "SLICE %s %s %s" e_1 e_2 e_3
   | E_check_signature (e_1, e_2, e_3) ->
-      fprintf ppf "CHECK_SIGNATURE %a %a %a" expr e_1 expr e_2 expr e_3
-  | E_unpack (t, e) -> fprintf ppf "UNPACK %a %a" typ (fst t) expr e
+      fprintf ppf "CHECK_SIGNATURE %s %s %s" e_1 e_2 e_3
+  | E_unpack (t, e) -> fprintf ppf "UNPACK %a %s" typ (fst t) e
   | E_self -> fprintf ppf "SELF"
   | E_now -> fprintf ppf "NOW"
   | E_amount -> fprintf ppf "AMOUNT"
@@ -131,14 +145,14 @@ and expr ppf = function
   | E_steps_to_quota -> fprintf ppf "STEPS_TO_QUOTA"
   | E_source -> fprintf ppf "SOURCE"
   | E_sender -> fprintf ppf "SENDER"
-  | E_address_of_contract e -> fprintf ppf "ADDRESS %a" expr e
-  | E_size e -> fprintf ppf "SIZE %a" expr e
-  | E_lift_option e -> fprintf ppf "lift_option %a" expr e
-  | E_lift_or e -> fprintf ppf "lift_or %a" expr e
-  | E_hd e -> fprintf ppf "hd %a" expr e
-  | E_tl e -> fprintf ppf "tl %a" expr e
-  | E_isnat e -> fprintf ppf "ISNAT %a" expr e
-  | E_int_of_nat e -> fprintf ppf "INT %a" expr e
+  | E_address_of_contract e -> fprintf ppf "ADDRESS %s" e
+  | E_size e -> fprintf ppf "SIZE %s" e
+  | E_lift_option e -> fprintf ppf "lift_option %s" e
+  | E_lift_or e -> fprintf ppf "lift_or %s" e
+  | E_hd e -> fprintf ppf "hd %s" e
+  | E_tl e -> fprintf ppf "tl %s" e
+  | E_isnat e -> fprintf ppf "ISNAT %s" e
+  | E_int_of_nat e -> fprintf ppf "INT %s" e
   | E_chain_id -> fprintf ppf "CHAIN_ID"
   | E_lambda (t_1, t_2, _) ->
       fprintf ppf "LAMBDA %a %a {...}" typ (fst t_1) typ (fst t_2)
@@ -147,6 +161,12 @@ and expr ppf = function
   | E_create_account_address _ -> (* TODO: *) fprintf ppf ""
   | E_operation o -> operation ppf o
   | E_dup s -> fprintf ppf "DUP %s" s
+  | E_nil t -> fprintf ppf "NIL %a" typ (fst t)
+  | E_empty_set t -> fprintf ppf "EMPTY_SET %a" comparable_type (fst t)
+  | E_empty_map (t_k, t_v) ->
+      fprintf ppf "EMPTY_MAP %a %a" comparable_type (fst t_k) typ (fst t_v)
+  | E_empty_big_map (t_k, t_v) ->
+      fprintf ppf "EMPTY_BIG_MAP %a %a" comparable_type (fst t_k) typ (fst t_v)
 
 let rec stmt i ppf = function
   | S_seq (S_skip, s) | S_seq (s, S_skip) -> stmt i ppf s
