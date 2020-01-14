@@ -168,8 +168,10 @@ and expr ppf = function
   | E_empty_big_map (t_k, t_v) ->
       fprintf ppf "EMPTY_BIG_MAP %a %a" comparable_type (fst t_k) typ (fst t_v)
 
-let rec stmt i ppf = function
-  | S_seq (S_skip, s) | S_seq (s, S_skip) -> stmt i ppf s
+let rec stmt i ppf n =
+  match n.stm with
+  | S_seq ({ id = _; stm = S_skip }, s) | S_seq (s, { id = _; stm = S_skip }) ->
+      stmt i ppf s
   | S_seq (s_1, s_2) -> fprintf ppf "%a;\n%a" (stmt i) s_1 (stmt i) s_2
   | S_var_decl (s, None) -> fprintf ppf "var %s" s
   | S_var_decl (s, Some t) -> fprintf ppf "var %s : %a" s typ (fst t)

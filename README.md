@@ -1,6 +1,7 @@
-# MichelSCIL
+# Tezla
 
-An instantiation of SCIL for the Michelson language.
+An intermediate representation of Michelson smart contracts designed to ease
+static analysis of smart contracts.
 
 ---
 

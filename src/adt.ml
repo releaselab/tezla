@@ -83,7 +83,7 @@ and expr =
   | E_empty_map of comparable_type * typ
   | E_empty_big_map of comparable_type * typ
 
-and stmt =
+and stmt_t =
   | S_seq of stmt * stmt
   | S_var_decl of string * typ option
   | S_assign of string * expr
@@ -105,6 +105,18 @@ and stmt =
   | S_cast
   | S_contract of typ
 
+and stmt = { id : int; stm : stmt_t }
+
 and func = stmt * string
 
 and program = typ * typ * func
+
+let id_counter = ref (-1)
+
+let next_id () =
+  let () = id_counter := !id_counter + 1 in
+  !id_counter
+
+let create_stmt stm =
+  let id = next_id () in
+  { id; stm }
