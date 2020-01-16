@@ -212,7 +212,6 @@ let rec stmt i ppf n =
       fprintf ppf "ITER %s\n{\n%a\n}" s (stmt i') b
   | S_failwith s -> fprintf ppf "FAILWITH %s" s
   | S_cast -> fprintf ppf "CAST"
-  | S_contract t -> fprintf ppf "CONTRACT %a" typ (fst t)
 
 let func ppf (b, v) = fprintf ppf "@[<1>%s => {\n%a\n}" v (stmt 2) b
 

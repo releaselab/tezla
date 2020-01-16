@@ -103,7 +103,6 @@ and stmt_t =
   | S_iter of string * stmt
   | S_failwith of string
   | S_cast
-  | S_contract of typ
 
 and stmt = { id : int; stm : stmt_t }
 
