@@ -1,0 +1,9 @@
+(executable
+  (name main)
+  (libraries michelson tezla)
+  (flags -g)
+  (modes byte))
+
+(alias
+  (name runtest)
+  (action (run ./main.exe ../../../../tests/)))

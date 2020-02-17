@@ -1,15 +1,25 @@
-type 'a env = 'a list
+type env = Failed | Stack of string Functional_stack.t
 
-val empty_env : 'a env
+val next_var : Z.t ref -> string
 
-val push : 'a -> 'a env -> 'a env
+val empty_env : env
 
-val pop : 'a env -> 'a * 'a env
+val failed_env : env
 
-val drop : 'a env -> 'a env
+val push : string -> env -> env
 
-val peek : 'a env -> 'a
+val pop : env -> string * env
 
-val swap : 'a env -> 'a env
+val drop : env -> env
 
-val join : (string -> 'a) -> 'a env -> 'a env -> 'a env
+val peek : env -> string
+
+val swap : env -> env
+
+val dig : env -> Z.t -> env
+
+val dug : env -> Z.t -> env
+
+val dip : env -> Z.t -> string list * env
+
+val dup : env -> string * env

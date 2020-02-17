@@ -1,3 +1,9 @@
+type loc = Unknown | Loc of int * int
+
+type ident = string
+
+type decl = ident
+
 type unop = Fst | Snd | Abs | Neg | Not
 
 type binop =
@@ -105,27 +111,27 @@ type expr =
   | E_size of expr
 
 and stmt =
-  | S_seq of stmt * stmt
+  | S_seq of stmt t * stmt t
   | S_var_decl of string
-  | S_assign of string * expr
+  | S_assign of string * expr t
   | S_skip
-  | S_if of expr * stmt * stmt
-  | S_while of expr * stmt
-  | S_if_cons of stmt * stmt
+  | S_if of expr t * stmt t * stmt t
+  | S_while of expr t * stmt t
+  | S_if_cons of stmt t * stmt t
   | S_size
   | S_empty_set of comparable_type
   | S_empty_map of comparable_type * typ
-  | S_map of stmt
-  | S_iter of stmt
+  | S_map of stmt t
+  | S_iter of stmt t
   | S_mem
   | S_get
   | S_update
-  | S_loop of stmt
-  | S_loop_left of stmt
-  | S_lambda of typ * typ * stmt
+  | S_loop of stmt t
+  | S_loop_left of stmt t
+  | S_lambda of typ * typ * stmt t
   | S_exec
-  | S_dip of stmt
-  | S_failwith of expr
+  | S_dip of stmt t
+  | S_failwith of expr t
   | S_cast
   | S_rename
   | S_concat
@@ -156,7 +162,7 @@ and stmt =
   | S_transfer_tokens
   | S_set_delegate
   | S_create_account
-  | S_create_contract of stmt
+  | S_create_contract of stmt t
   | S_implicit_account
   | S_now
   | S_amount
@@ -171,3 +177,16 @@ and stmt =
   | S_sender
   | S_address
   | S_todo
+
+and _ node_data =
+  | Stmt : stmt -> stmt node_data
+  | Decl : decl -> decl node_data
+  | Expr : expr -> expr node_data
+
+and 'a t = {id: int; loc: loc; data: 'a node_data}
+
+val create : ?loc:loc -> 'a node_data -> 'a t
+
+val get_node_data : 'a t -> 'a
+
+val to_string : 'a t -> string

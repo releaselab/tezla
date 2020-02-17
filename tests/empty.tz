@@ -1,0 +1,5 @@
+code { CDR ;           # keep the storage
+       NIL operation ; # return no internal operation
+       PAIR };         # respect the calling convention
+storage unit;
+parameter unit;

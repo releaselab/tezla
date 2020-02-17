@@ -1,0 +1,17 @@
+parameter (list int);
+storage int;
+code { DUP ;
+       DIP { CDR } ;
+       CAR ;
+       DIP {DUP} ; SWAP ;
+       PUSH int 3 ;
+       PUSH (list int) { 1 ; 2 ; 3 ; 4 ; 5 ; 6 } ;
+       ITER { DIP {DUP} ; SWAP ;
+              DIP {DUP} ; SWAP ;
+              COMPARE ;
+              GT ;
+              IF { DROP; } { DIP { DROP } };
+            } ;
+       DIP { DROP ; DROP ; DROP} ;
+       NIL operation;
+       PAIR };

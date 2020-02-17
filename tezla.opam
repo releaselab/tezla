@@ -8,7 +8,7 @@ homepage: "https://gitlab.com/releaselab/fresco/michelscil"
 bug-reports: "https://gitlab.com/releaselab/fresco/michelscil/issues"
 depends: [
   "dune" {build}
-  "zarith" {> "1.0"}
+  "zarith" {dev}
 ]
 build: [
   ["dune" "subst"] {pinned}

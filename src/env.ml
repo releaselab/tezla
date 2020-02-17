@@ -1,27 +1,64 @@
-type 'a env = 'a list
+module S = Functional_stack
 
-let empty_env = []
+type env = Failed | Stack of string Functional_stack.t
 
-let var_counter = ref (-1)
+let empty_env = Stack S.empty
 
-let next_var () =
-  let () = var_counter := !var_counter + 1 in
-  Printf.sprintf "v%d" !var_counter
+let failed_env = Failed
 
-(* let push ?name x =
-  let v = match name with None -> next_var () | Some s -> s in
-  List.cons (x, v) *)
-let push = List.cons
+let next_var var_counter =
+  let () = var_counter := Z.(!var_counter + one) in
+  Printf.sprintf "v%s" (Z.to_string !var_counter)
 
-let pop env = (List.hd env, List.tl env)
+exception Stack_failed
 
-let drop = List.tl
+let stack_or_failed = function Failed -> raise Stack_failed | Stack s -> s
 
-let peek = List.hd
+let push x env =
+  let s = stack_or_failed env in
+  Stack (S.push x s)
 
-let swap = function h :: h' :: t -> h' :: h :: t | l -> l
+let pop env =
+  let s = stack_or_failed env in
+  let x, s' = S.pop s in
+  (x, Stack s')
+
+let drop env =
+  let s = stack_or_failed env in
+  let _, s' = S.pop s in
+  Stack s'
+
+let peek env =
+  let s = stack_or_failed env in
+  S.peek s
+
+let swap env =
+  let s = stack_or_failed env in
+  Stack (S.swap s)
+
+let dig env n =
+  let s = stack_or_failed env in
+  Stack (S.dig s n)
+
+let dug env n =
+  let s = stack_or_failed env in
+  Stack (S.dug s n)
+
+let dip env n =
+  if Z.(n = ~$0) then ([], env)
+  else
+    let rec aux (acc, env') n' =
+      if Z.(n' = ~$0) then (acc, env')
+      else
+        let x, env'' = pop env' in
+        let acc' = x :: acc in
+        aux (acc', env'') Z.(n' - ~$1)
+    in
+    aux ([], env) n
+
+let dup env =
+  let x = peek env in
+  let env' = push x env in
+  (x, env')
 
 (* let rename v = function (x, _) :: t -> (x, v) :: t | l -> l *)
-
-let join string_to_expr env_1 =
-  List.map2 (fun _ _ -> string_to_expr (next_var ())) env_1
