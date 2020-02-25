@@ -49,7 +49,7 @@ let () =
 
 let () =
   try
-    let adt = Parsing_utils.parse_with_error (path ^ "test3.tz") in
+    let adt = Parsing_utils.parse_with_error (path ^ "map.tz") in
     let p = Converter.convert_program adt in
     Pp.stmt 1 Format.std_formatter p
   with _ -> ()

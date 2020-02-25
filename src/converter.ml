@@ -171,38 +171,48 @@ let rec inst_to_stmt counter env (i, a) =
       (assign, push v env)
   | I_map b ->
       let c, env' = pop env in
-      let hd, assign_hd = create_assign (E_hd c) in
+      let empty_list, empty_list_assign = create_assign E_special_nil_list in
+      let loop_var = next_var () in
+      let result = next_var () in
+      let hd, assign_hd = create_assign (E_hd loop_var) in
       let body, env' =
         let body_env = push hd env' in
         inst_to_stmt counter body_env b
       in
-      let assign_tl = create_stmt (S_assign (c, E_tl c, None)) in
+      let tl, assign_tl = create_assign (E_tl loop_var) in
       let x, env' = pop env' in
-      let result = next_var () in
-      let assign_result =
-        create_stmt (S_assign (result, E_append (result, x), None))
-      in
+      let append, assign_append = create_assign (E_append (result, x)) in
       let body =
         create_stmt
           (S_seq
-             ( create_stmt
-                 (S_seq (assign_hd, create_stmt (S_seq (body, assign_tl)))),
-               assign_result ))
+             ( assign_hd,
+               create_stmt
+                 (S_seq (body, create_stmt (S_seq (assign_append, assign_tl))))
+             ))
       in
-      let s = create_stmt (S_map (c, body)) in
-      (s, env')
+      let s =
+        create_stmt
+          (S_seq
+             ( empty_list_assign,
+               create_stmt
+                 (S_map
+                    ((loop_var, (c, tl)), (result, (empty_list, append)), body))
+             ))
+      in
+      (s, push result env')
   | I_iter b ->
       let c, env' = pop env in
-      let hd, assign_hd = create_assign (E_hd c) in
+      let loop_var = next_var () in
+      let hd, assign_hd = create_assign (E_hd loop_var) in
       let body, env' =
         let body_env = push hd env' in
         inst_to_stmt counter body_env b
       in
-      let assign_tl = create_stmt (S_assign (c, E_tl c, None)) in
+      let tl, assign_tl = create_assign (E_tl loop_var) in
       let body =
         create_stmt (S_seq (assign_hd, create_stmt (S_seq (body, assign_tl))))
       in
-      let s = create_stmt (S_iter (c, body)) in
+      let s = create_stmt (S_iter (loop_var, (c, tl), body)) in
       (s, env')
   | I_mem ->
       let elt, env' = pop env in
@@ -229,21 +239,14 @@ let rec inst_to_stmt counter env (i, a) =
       (s, env')
   | I_loop i ->
       let c, env' = pop env in
-      let loop_var, assign_loop_var = create_assign (E_ident c) in
+      let loop_var = next_var () in
       let body, env' = inst_to_stmt counter env' i in
       let loop_result, env' = pop env' in
-      let assign =
-        create_stmt (S_assign (loop_var, E_ident loop_result, None))
-      in
-      let body = create_stmt (S_seq (body, assign)) in
-      let s =
-        create_stmt
-          (S_seq (assign_loop_var, create_stmt (S_loop (loop_var, body))))
-      in
+      let s = create_stmt (S_loop (loop_var, (c, loop_result), body)) in
       (s, env')
   | I_loop_left i ->
       let c, env' = pop env in
-      let loop_var, assign_loop_var = create_assign (E_ident c) in
+      let loop_var = next_var () in
       let e = E_unlift_or loop_var in
       let v, assign_unlift = create_assign e in
       let body, env' =
@@ -251,21 +254,12 @@ let rec inst_to_stmt counter env (i, a) =
         inst_to_stmt counter body_env i
       in
       let loop_result, env' = pop env' in
-      let assign_loop_result =
-        create_stmt (S_assign (loop_var, E_ident loop_result, None))
-      in
-      let body =
-        create_stmt
-          (S_seq (create_stmt (S_seq (assign_unlift, body)), assign_loop_result))
-      in
+      let body = create_stmt (S_seq (assign_unlift, body)) in
       let s =
         create_stmt
           (S_seq
-             ( assign_loop_var,
-               create_stmt
-                 (S_seq
-                    (create_stmt (S_loop_left (loop_var, body)), assign_unlift))
-             ))
+             ( create_stmt (S_loop_left (loop_var, (c, loop_result), body)),
+               assign_unlift ))
       in
       let env' = push c env' in
       (s, env')

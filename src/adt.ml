@@ -83,6 +83,7 @@ and expr =
   | E_empty_map of comparable_type * typ
   | E_empty_big_map of comparable_type * typ
   | E_append of string * string
+  | E_special_nil_list
   | E_phi of string * string
 
 and stmt_t =
@@ -97,10 +98,10 @@ and stmt_t =
   | S_if_none of string * stmt * stmt * string
   | S_if_left of string * stmt * stmt * string
   | S_if_cons of string * stmt * string * string * stmt
-  | S_loop of string * stmt
-  | S_loop_left of string * stmt
-  | S_map of string * stmt
-  | S_iter of string * stmt
+  | S_loop of string * (string * string) * stmt
+  | S_loop_left of string * (string * string) * stmt
+  | S_map of (string * (string * string)) * (string * (string * string)) * stmt
+  | S_iter of string * (string * string) * stmt
   | S_failwith of string
   | S_cast
 

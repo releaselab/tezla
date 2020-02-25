@@ -169,6 +169,7 @@ and expr ppf = function
       fprintf ppf "EMPTY_BIG_MAP %a %a" comparable_type (fst t_k) typ (fst t_v)
   | E_append (v_1, v_2) -> fprintf ppf "append(%s, %s)" v_1 v_2
   | E_phi (v_1, v_2) -> fprintf ppf "phi(%s, %s)" v_1 v_2
+  | E_special_nil_list -> fprintf ppf "[]"
 
 let rec stmt i ppf n =
   match n.stm with
@@ -200,18 +201,19 @@ let rec stmt i ppf n =
   | S_if_cons (s, s_1, _, _, s_2) ->
       let i' = i + 1 in
       fprintf ppf "IF_CONS %s\n{\n%a\n}\n{\n%a\n}" s (stmt i') s_1 (stmt i') s_2
-  | S_loop (s, b) ->
+  | S_loop (s, (v_1, v_2), b) ->
       let i' = i + 1 in
-      fprintf ppf "LOOP %s\n{\n%a\n}" s (stmt i') b
-  | S_loop_left (s, b) ->
+      fprintf ppf "LOOP %s := phi(%s, %s)\n{\n%a\n}" s v_1 v_2 (stmt i') b
+  | S_loop_left (s, (v_1, v_2), b) ->
       let i' = i + 1 in
-      fprintf ppf "LOOP_LEFT %s\n{\n%a\n}" s (stmt i') b
-  | S_map (s, b) ->
+      fprintf ppf "LOOP_LEFT %s := phi(%s, %s)\n{\n%a\n}" s v_1 v_2 (stmt i') b
+  | S_map ((c, (c_1, c_2)), (r, (r_1, r_2)), b) ->
       let i' = i + 1 in
-      fprintf ppf "MAP %s\n{\n%a\n}" s (stmt i') b
-  | S_iter (s, b) ->
+      fprintf ppf "MAP %s := phi(%s, %s) with %s := phi(%s, %s)\n{\n%a\n}" c c_1
+        c_2 r r_1 r_2 (stmt i') b
+  | S_iter (s, (v_1, v_2), b) ->
       let i' = i + 1 in
-      fprintf ppf "ITER %s\n{\n%a\n}" s (stmt i') b
+      fprintf ppf "ITER %s := phi(%s, %s)\n{\n%a\n}" s v_1 v_2 (stmt i') b
   | S_failwith s -> fprintf ppf "FAILWITH %s" s
   | S_cast -> fprintf ppf "CAST"
 
