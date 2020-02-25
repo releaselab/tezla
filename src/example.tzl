@@ -1,0 +1,32 @@
+var v0 := CAR parameter_storage;
+var v1 : list string := {};
+SWAP;
+var v2 := PAIR v0 v1;
+var v3 := LEFT v2;
+var v15;
+LOOP_LEFT v3
+{
+    var v4 := lift_or v3;
+    var v5 := DUP v4;
+    var v6 := CAR v5;
+    var v7 := CDR v4;
+    var v14;
+    IF_CONS v6
+    {
+        var v8 := list_hd v6;
+        var v9 := list_tl v6;
+        SWAP;
+        var v10 := CONS v8 v7;
+        var v11 := PAIR v9 v10;
+        var v12 := LEFT v11;
+        v14 := v12;
+    }
+    {
+        var v13 := RIGHT v7;
+        v14 := v13;
+    };
+    v15 := v14;
+};
+var v16 := lift_or v15;
+var v17 : list operation := {};
+var v18 := PAIR v17 v16;

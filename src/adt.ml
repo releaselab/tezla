@@ -83,12 +83,13 @@ and expr =
   | E_empty_map of comparable_type * typ
   | E_empty_big_map of comparable_type * typ
   | E_append of string * string
+  | E_phi of string * string
 
 and stmt_t =
   | S_seq of stmt * stmt
   | S_assign of string * expr * typ option
   | S_skip
-  | S_drop of Z.t
+  | S_drop of string list
   | S_swap
   | S_dig
   | S_dug

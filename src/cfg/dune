@@ -1,5 +1,0 @@
-(library
- (name tezla_cfg)
- (public_name tezla-cfg)
- (libraries michelson tezla batteries ocamlgraph)
- (modules_without_implementation sig))

@@ -168,6 +168,7 @@ and expr ppf = function
   | E_empty_big_map (t_k, t_v) ->
       fprintf ppf "EMPTY_BIG_MAP %a %a" comparable_type (fst t_k) typ (fst t_v)
   | E_append (v_1, v_2) -> fprintf ppf "append(%s, %s)" v_1 v_2
+  | E_phi (v_1, v_2) -> fprintf ppf "phi(%s, %s)" v_1 v_2
 
 let rec stmt i ppf n =
   match n.stm with
@@ -177,9 +178,13 @@ let rec stmt i ppf n =
   | S_assign (s, e, None) -> fprintf ppf "%s := %a" s expr e
   | S_assign (s, e, Some t) -> fprintf ppf "%s : %a := %a" s typ (fst t) expr e
   | S_skip -> fprintf ppf ""
-  | S_drop n ->
-      if Z.(n = one) then fprintf ppf "DROP"
-      else fprintf ppf "DROP %a" Z.pp_print n
+  | S_drop l ->
+      let print_list ppf =
+        let pp_sep ppf _ = fprintf ppf "," in
+        let pp_v = pp_print_text in
+        pp_print_list ~pp_sep pp_v ppf
+      in
+      fprintf ppf "DROP %a" print_list l
   | S_swap -> fprintf ppf "SWAP"
   | S_dig -> fprintf ppf "DIG"
   | S_dug -> fprintf ppf "DUG"
