@@ -73,7 +73,7 @@ let rec data ppf =
   | D_set (_, dl) ->
       let pp_l = pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "; ") data in
       fprintf ppf "{%a}" pp_l dl
-  | D_map dl ->
+  | D_map (_, dl) ->
       let print_elem ppf (k, v) = fprintf ppf "Elt %a %a" data k data v in
       let pp_l =
         pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "; ") print_elem
@@ -147,8 +147,8 @@ and expr ppf = function
   | E_sender -> fprintf ppf "SENDER"
   | E_address_of_contract e -> fprintf ppf "ADDRESS %s" e
   | E_size e -> fprintf ppf "SIZE %s" e
-  | E_lift_option e -> fprintf ppf "lift_option %s" e
-  | E_lift_or e -> fprintf ppf "lift_or %s" e
+  | E_unlift_option e -> fprintf ppf "unlift_option %s" e
+  | E_unlift_or e -> fprintf ppf "unlift_or %s" e
   | E_hd e -> fprintf ppf "hd %s" e
   | E_tl e -> fprintf ppf "tl %s" e
   | E_isnat e -> fprintf ppf "ISNAT %s" e
@@ -167,18 +167,15 @@ and expr ppf = function
       fprintf ppf "EMPTY_MAP %a %a" comparable_type (fst t_k) typ (fst t_v)
   | E_empty_big_map (t_k, t_v) ->
       fprintf ppf "EMPTY_BIG_MAP %a %a" comparable_type (fst t_k) typ (fst t_v)
+  | E_append (v_1, v_2) -> fprintf ppf "append(%s, %s)" v_1 v_2
 
 let rec stmt i ppf n =
   match n.stm with
   | S_seq ({ id = _; stm = S_skip }, s) | S_seq (s, { id = _; stm = S_skip }) ->
       stmt i ppf s
   | S_seq (s_1, s_2) -> fprintf ppf "%a;\n%a" (stmt i) s_1 (stmt i) s_2
-  | S_var_decl (s, None) -> fprintf ppf "var %s" s
-  | S_var_decl (s, Some t) -> fprintf ppf "var %s : %a" s typ (fst t)
-  | S_assign (s, e) -> fprintf ppf "%s := %a" s expr e
-  | S_decl_assign (s, e, None) -> fprintf ppf "var %s := %a" s expr e
-  | S_decl_assign (s, e, Some t) ->
-      fprintf ppf "var %s : %a := %a" s typ (fst t) expr e
+  | S_assign (s, e, None) -> fprintf ppf "%s := %a" s expr e
+  | S_assign (s, e, Some t) -> fprintf ppf "%s : %a := %a" s typ (fst t) expr e
   | S_skip -> fprintf ppf ""
   | S_drop n ->
       if Z.(n = one) then fprintf ppf "DROP"

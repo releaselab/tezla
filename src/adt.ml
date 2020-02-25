@@ -66,8 +66,8 @@ and expr =
   | E_sender
   | E_address_of_contract of string
   | E_create_contract_address of operation
-  | E_lift_option of string
-  | E_lift_or of string
+  | E_unlift_option of string
+  | E_unlift_or of string
   | E_hd of string
   | E_tl of string
   | E_size of string
@@ -82,12 +82,11 @@ and expr =
   | E_empty_set of comparable_type
   | E_empty_map of comparable_type * typ
   | E_empty_big_map of comparable_type * typ
+  | E_append of string * string
 
 and stmt_t =
   | S_seq of stmt * stmt
-  | S_var_decl of string * typ option
-  | S_assign of string * expr
-  | S_decl_assign of string * expr * typ option
+  | S_assign of string * expr * typ option
   | S_skip
   | S_drop of Z.t
   | S_swap
