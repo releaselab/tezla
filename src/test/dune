@@ -1,9 +1,15 @@
-(executable
-  (name main)
-  (libraries michelson tezla)
-  (flags -g)
-  (modes byte))
+(executables
+ (names main test)
+ (libraries michelson tezla)
+ (flags -g)
+ (modes byte))
 
-(alias
-  (name runtest)
-  (action (run ./main.exe ../../../../tests/)))
+(rule
+ (alias runtest)
+ (action
+  (run ./main.exe ../../../../tests/)))
+
+(rule
+ (alias test)
+ (action
+  (run ./test.exe ../../../../tests/test.tz)))

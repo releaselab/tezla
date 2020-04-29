@@ -66,8 +66,8 @@ and expr =
   | E_sender
   | E_address_of_contract of string
   | E_create_contract_address of operation
-  | E_lift_option of string
-  | E_lift_or of string
+  | E_unlift_option of string
+  | E_unlift_or of string
   | E_hd of string
   | E_tl of string
   | E_size of string
@@ -82,14 +82,15 @@ and expr =
   | E_empty_set of comparable_type
   | E_empty_map of comparable_type * typ
   | E_empty_big_map of comparable_type * typ
+  | E_append of string * string
+  | E_special_nil_list
+  | E_phi of string * string
 
 and stmt_t =
   | S_seq of stmt * stmt
-  | S_var_decl of string * typ option
-  | S_assign of string * expr
-  | S_decl_assign of string * expr * typ option
+  | S_assign of string * expr * typ option
   | S_skip
-  | S_drop of Z.t
+  | S_drop of string list
   | S_swap
   | S_dig
   | S_dug
@@ -97,10 +98,10 @@ and stmt_t =
   | S_if_none of string * stmt * stmt * string
   | S_if_left of string * stmt * stmt * string
   | S_if_cons of string * stmt * string * string * stmt
-  | S_loop of string * stmt
-  | S_loop_left of string * stmt
-  | S_map of string * stmt
-  | S_iter of string * stmt
+  | S_loop of string * (string * string) * stmt
+  | S_loop_left of string * (string * string) * stmt
+  | S_map of (string * (string * string)) * (string * (string * string)) * stmt
+  | S_iter of string * (string * string) * stmt
   | S_failwith of string
   | S_cast
 

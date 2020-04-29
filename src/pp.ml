@@ -73,7 +73,7 @@ let rec data ppf =
   | D_set (_, dl) ->
       let pp_l = pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "; ") data in
       fprintf ppf "{%a}" pp_l dl
-  | D_map dl ->
+  | D_map (_, dl) ->
       let print_elem ppf (k, v) = fprintf ppf "Elt %a %a" data k data v in
       let pp_l =
         pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "; ") print_elem
@@ -147,8 +147,8 @@ and expr ppf = function
   | E_sender -> fprintf ppf "SENDER"
   | E_address_of_contract e -> fprintf ppf "ADDRESS %s" e
   | E_size e -> fprintf ppf "SIZE %s" e
-  | E_lift_option e -> fprintf ppf "lift_option %s" e
-  | E_lift_or e -> fprintf ppf "lift_or %s" e
+  | E_unlift_option e -> fprintf ppf "unlift_option %s" e
+  | E_unlift_or e -> fprintf ppf "unlift_or %s" e
   | E_hd e -> fprintf ppf "hd %s" e
   | E_tl e -> fprintf ppf "tl %s" e
   | E_isnat e -> fprintf ppf "ISNAT %s" e
@@ -167,22 +167,25 @@ and expr ppf = function
       fprintf ppf "EMPTY_MAP %a %a" comparable_type (fst t_k) typ (fst t_v)
   | E_empty_big_map (t_k, t_v) ->
       fprintf ppf "EMPTY_BIG_MAP %a %a" comparable_type (fst t_k) typ (fst t_v)
+  | E_append (v_1, v_2) -> fprintf ppf "append(%s, %s)" v_1 v_2
+  | E_phi (v_1, v_2) -> fprintf ppf "phi(%s, %s)" v_1 v_2
+  | E_special_nil_list -> fprintf ppf "[]"
 
 let rec stmt i ppf n =
   match n.stm with
   | S_seq ({ id = _; stm = S_skip }, s) | S_seq (s, { id = _; stm = S_skip }) ->
       stmt i ppf s
   | S_seq (s_1, s_2) -> fprintf ppf "%a;\n%a" (stmt i) s_1 (stmt i) s_2
-  | S_var_decl (s, None) -> fprintf ppf "var %s" s
-  | S_var_decl (s, Some t) -> fprintf ppf "var %s : %a" s typ (fst t)
-  | S_assign (s, e) -> fprintf ppf "%s := %a" s expr e
-  | S_decl_assign (s, e, None) -> fprintf ppf "var %s := %a" s expr e
-  | S_decl_assign (s, e, Some t) ->
-      fprintf ppf "var %s : %a := %a" s typ (fst t) expr e
+  | S_assign (s, e, None) -> fprintf ppf "%s := %a" s expr e
+  | S_assign (s, e, Some t) -> fprintf ppf "%s : %a := %a" s typ (fst t) expr e
   | S_skip -> fprintf ppf ""
-  | S_drop n ->
-      if Z.(n = one) then fprintf ppf "DROP"
-      else fprintf ppf "DROP %a" Z.pp_print n
+  | S_drop l ->
+      let print_list ppf =
+        let pp_sep ppf _ = fprintf ppf "," in
+        let pp_v = pp_print_text in
+        pp_print_list ~pp_sep pp_v ppf
+      in
+      fprintf ppf "DROP %a" print_list l
   | S_swap -> fprintf ppf "SWAP"
   | S_dig -> fprintf ppf "DIG"
   | S_dug -> fprintf ppf "DUG"
@@ -198,18 +201,19 @@ let rec stmt i ppf n =
   | S_if_cons (s, s_1, _, _, s_2) ->
       let i' = i + 1 in
       fprintf ppf "IF_CONS %s\n{\n%a\n}\n{\n%a\n}" s (stmt i') s_1 (stmt i') s_2
-  | S_loop (s, b) ->
+  | S_loop (s, (v_1, v_2), b) ->
       let i' = i + 1 in
-      fprintf ppf "LOOP %s\n{\n%a\n}" s (stmt i') b
-  | S_loop_left (s, b) ->
+      fprintf ppf "LOOP %s := phi(%s, %s)\n{\n%a\n}" s v_1 v_2 (stmt i') b
+  | S_loop_left (s, (v_1, v_2), b) ->
       let i' = i + 1 in
-      fprintf ppf "LOOP_LEFT %s\n{\n%a\n}" s (stmt i') b
-  | S_map (s, b) ->
+      fprintf ppf "LOOP_LEFT %s := phi(%s, %s)\n{\n%a\n}" s v_1 v_2 (stmt i') b
+  | S_map ((c, (c_1, c_2)), (r, (r_1, r_2)), b) ->
       let i' = i + 1 in
-      fprintf ppf "MAP %s\n{\n%a\n}" s (stmt i') b
-  | S_iter (s, b) ->
+      fprintf ppf "MAP %s := phi(%s, %s) with %s := phi(%s, %s)\n{\n%a\n}" c c_1
+        c_2 r r_1 r_2 (stmt i') b
+  | S_iter (s, (v_1, v_2), b) ->
       let i' = i + 1 in
-      fprintf ppf "ITER %s\n{\n%a\n}" s (stmt i') b
+      fprintf ppf "ITER %s := phi(%s, %s)\n{\n%a\n}" s v_1 v_2 (stmt i') b
   | S_failwith s -> fprintf ppf "FAILWITH %s" s
   | S_cast -> fprintf ppf "CAST"
 

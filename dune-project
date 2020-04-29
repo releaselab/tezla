@@ -1,4 +1,4 @@
-(lang dune 1.11)
+(lang dune 2.03)
 (name tezla)
 
 (generate_opam_files true)
@@ -17,12 +17,3 @@
   (dune :build)
   (zarith :dev)))
 
-(package
- (name tezla-cfg)
- (synopsis "An CFG generator for Tezla programs")
- (depends
-  (dune :build)
-  (michelson :dev)
-  (tezla :dev)
-  (ocamlgraph :dev)
-  (batteries :dev)))

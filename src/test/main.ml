@@ -43,12 +43,13 @@ let () =
         let _ = Converter.convert_program adt in
         Printf.printf "Test %d: OK\n" i
       with _ as e ->
-        Printf.printf "Test %d: not OK | %s\n" i (Printexc.to_string e))
+        Printf.printf "Test %d: not OK\n%s" i (Printexc.to_string e);
+        Printexc.print_backtrace stdout)
     tests
 
 let () =
   try
-    let adt = Parsing_utils.parse_with_error (path ^ "loop_left.tz") in
+    let adt = Parsing_utils.parse_with_error (path ^ "map.tz") in
     let p = Converter.convert_program adt in
     Pp.stmt 1 Format.std_formatter p
   with _ -> ()
