@@ -11,7 +11,7 @@ type operation =
   | O_create_account of string * string * string * string
 
 and expr =
-  | E_push of data
+  | E_push of data * typ
   | E_car of string
   | E_cdr of string
   | E_abs of string
@@ -21,6 +21,7 @@ and expr =
   | E_sub of string * string
   | E_mul of string * string
   | E_div of string * string
+  | E_mod of string * string
   | E_shiftL of string * string
   | E_shiftR of string * string
   | E_and of string * string
@@ -33,13 +34,12 @@ and expr =
   | E_leq of string
   | E_geq of string
   | E_compare of string * string
-  | E_ident of string
   | E_cons of string * string
   | E_operation of operation
   | E_unit
   | E_pair of string * string
-  | E_left of string
-  | E_right of string
+  | E_left of string * typ
+  | E_right of string * typ
   | E_some of string
   | E_none of typ
   | E_mem of string * string
@@ -88,22 +88,21 @@ and expr =
 
 and stmt_t =
   | S_seq of stmt * stmt
-  | S_assign of string * expr * typ option
+  | S_assign of string * expr
   | S_skip
   | S_drop of string list
   | S_swap
   | S_dig
   | S_dug
   | S_if of string * stmt * stmt
-  | S_if_none of string * stmt * stmt * string
-  | S_if_left of string * stmt * stmt * string
-  | S_if_cons of string * stmt * string * string * stmt
+  | S_if_none of string * stmt * stmt
+  | S_if_left of string * stmt * stmt
+  | S_if_cons of string * stmt * stmt
   | S_loop of string * (string * string) * stmt
   | S_loop_left of string * (string * string) * stmt
   | S_map of (string * (string * string)) * (string * (string * string)) * stmt
   | S_iter of string * (string * string) * stmt
   | S_failwith of string
-  | S_cast
 
 and stmt = { id : int; stm : stmt_t }
 

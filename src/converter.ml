@@ -12,7 +12,7 @@ let join counter env_t env_f =
         match (env_after, env_t, env_f) with
         | [], [], [] -> acc
         | after :: env_after, t :: env_t, f :: env_f when t <> f ->
-            let s = create_stmt (S_assign (after, E_phi (t, f), None)) in
+            let s = create_stmt (S_assign (after, E_phi (t, f))) in
             phi (create_stmt (S_seq (s, acc))) env_after env_t env_f
         | _ :: env_after, _ :: env_t, _ :: env_f ->
             phi acc env_after env_t env_f
@@ -34,14 +34,14 @@ let rec inst_to_stmt counter env (i, a) =
     loop
   in
   let next_var () = next_var counter in
-  let create_assign ?t e =
+  let create_assign e =
     let v = next_var () in
-    (v, create_stmt (S_assign (v, e, t)))
+    (v, create_stmt (S_assign (v, e)))
   in
   match i with
   | I_push (t, x) ->
-      let e = E_push x in
-      let v, assign = create_assign ~t e in
+      let e = E_push (x, t) in
+      let v, assign = create_assign e in
       (assign, push v env)
   | I_seq (i_1, i_2) ->
       let s_1, env_1 = inst_to_stmt counter env i_1 in
@@ -86,7 +86,7 @@ let rec inst_to_stmt counter env (i, a) =
       let env', phis = join counter env_t env_f in
       let s_f = create_stmt (S_seq (assign, s_f)) in
       let s =
-        create_stmt (S_seq (create_stmt (S_if_none (x, s_t, s_f, v)), phis))
+        create_stmt (S_seq (create_stmt (S_if_none (x, s_t, s_f)), phis))
       in
       (s, env')
   | I_pair ->
@@ -102,13 +102,13 @@ let rec inst_to_stmt counter env (i, a) =
       let x, env' = pop env in
       let v, assign = create_assign (E_cdr x) in
       (assign, push v env')
-  | I_left _ ->
+  | I_left t ->
       let x, env' = pop env in
-      let v, assign = create_assign (E_left x) in
+      let v, assign = create_assign (E_left (x, t)) in
       (assign, push v env')
-  | I_right _ ->
+  | I_right t ->
       let x, env' = pop env in
-      let v, assign = create_assign (E_right x) in
+      let v, assign = create_assign (E_right (x, t)) in
       (assign, push v env')
   | I_if_left (i_t, i_f) ->
       let x, env' = pop env in
@@ -121,12 +121,12 @@ let rec inst_to_stmt counter env (i, a) =
       let s_t = create_stmt (S_seq (assign, s_t)) in
       let s_f = create_stmt (S_seq (assign, s_f)) in
       let s =
-        create_stmt (S_seq (create_stmt (S_if_left (x, s_t, s_f, v)), phis))
+        create_stmt (S_seq (create_stmt (S_if_left (x, s_t, s_f)), phis))
       in
       (s, env')
   | I_if_right (i_t, i_f) -> inst_to_stmt counter env (I_if_left (i_f, i_t), a)
   | I_nil t ->
-      let v, assign = create_assign ~t:(T_list t, None) (E_nil t) in
+      let v, assign = create_assign (E_nil t) in
       (assign, push v env)
   | I_cons ->
       let x_1, env' = pop env in
@@ -152,8 +152,7 @@ let rec inst_to_stmt counter env (i, a) =
         create_stmt (S_seq (assign_hd, create_stmt (S_seq (assign_tl, s_t))))
       in
       let s =
-        create_stmt
-          (S_seq (create_stmt (S_if_cons (c, s_t, v_hd, v_tl, s_f)), phis))
+        create_stmt (S_seq (create_stmt (S_if_cons (c, s_t, s_f)), phis))
       in
       (s, env')
   | I_size ->
@@ -255,13 +254,17 @@ let rec inst_to_stmt counter env (i, a) =
       in
       let loop_result, env' = pop env' in
       let body = create_stmt (S_seq (assign_unlift, body)) in
+      let post_loop_unlift = E_unlift_or loop_var in
+      let v_post_loop, post_loop_assign_unlift =
+        create_assign post_loop_unlift
+      in
       let s =
         create_stmt
           (S_seq
              ( create_stmt (S_loop_left (loop_var, (c, loop_result), body)),
-               assign_unlift ))
+               post_loop_assign_unlift ))
       in
-      let env' = push c env' in
+      let env' = push v_post_loop env' in
       (s, env')
   | I_lambda (t_1, t_2, i) ->
       let b, lambda_env = inst_to_stmt counter (push "param" empty_env) i in
@@ -491,6 +494,11 @@ let rec inst_to_stmt counter env (i, a) =
       let v, assign = create_assign E_chain_id in
       (assign, push v env)
   | I_noop -> (create_stmt S_skip, env)
+  | I_unpair ->
+      let x, env' = pop env in
+      let v_1, assign_1 = create_assign (E_car x) in
+      let v_2, assign_2 = create_assign (E_cdr x) in
+      (create_stmt (S_seq (assign_1, assign_2)), push v_1 (push v_2 env'))
 
 let convert_program p =
   let counter = ref Z.minus_one in

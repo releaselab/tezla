@@ -92,7 +92,7 @@ let rec operation ppf = function
       fprintf ppf "TRANSFER_TOKENS %s %s %s" e_1 e_2 e_3
 
 and expr ppf = function
-  | E_push d -> fprintf ppf "PUSH %a" data d
+  | E_push (d, (t, _)) -> fprintf ppf "PUSH %a %a" typ t data d
   | E_car e -> fprintf ppf "CAR %s" e
   | E_cdr e -> fprintf ppf "CDR %s" e
   | E_abs e -> fprintf ppf "ABS %s" e
@@ -104,8 +104,8 @@ and expr ppf = function
   | E_gt e -> fprintf ppf "GT %s" e
   | E_leq e -> fprintf ppf "LEQ %s" e
   | E_geq e -> fprintf ppf "GEQ %s" e
-  | E_left e -> fprintf ppf "LEFT %s" e
-  | E_right e -> fprintf ppf "RIGHT %s" e
+  | E_left (e, (t, _)) -> fprintf ppf "LEFT %a %s" typ t e
+  | E_right (e, (t, _)) -> fprintf ppf "RIGHT %a %s" typ t e
   | E_some e -> fprintf ppf "SOME %s" e
   | E_cast e -> fprintf ppf "CAST %s" e
   | E_pack e -> fprintf ppf "PACK %s" e
@@ -115,13 +115,13 @@ and expr ppf = function
   | E_sha256 e -> fprintf ppf "SHA256 %s" e
   | E_sha512 e -> fprintf ppf "SHA512 %s" e
   | E_hash_key e -> fprintf ppf "HASH_KEY %s" e
-  | E_ident s -> fprintf ppf "%s" s
   | E_unit -> fprintf ppf "UNIT"
   | E_none t -> fprintf ppf "NONE %a" typ (fst t)
   | E_add (e_1, e_2) -> fprintf ppf "ADD %s %s" e_1 e_2
   | E_sub (e_1, e_2) -> fprintf ppf "SUB %s %s" e_1 e_2
   | E_mul (e_1, e_2) -> fprintf ppf "MUL %s %s" e_1 e_2
   | E_div (e_1, e_2) -> fprintf ppf "EDIV %s %s" e_1 e_2
+  | E_mod (e_1, e_2) -> fprintf ppf "mod %s %s" e_1 e_2
   | E_shiftL (e_1, e_2) -> fprintf ppf "LSL %s %s" e_1 e_2
   | E_shiftR (e_1, e_2) -> fprintf ppf "LSR %s %s" e_1 e_2
   | E_and (e_1, e_2) -> fprintf ppf "AND %s %s" e_1 e_2
@@ -176,8 +176,7 @@ let rec stmt i ppf n =
   | S_seq ({ id = _; stm = S_skip }, s) | S_seq (s, { id = _; stm = S_skip }) ->
       stmt i ppf s
   | S_seq (s_1, s_2) -> fprintf ppf "%a;\n%a" (stmt i) s_1 (stmt i) s_2
-  | S_assign (s, e, None) -> fprintf ppf "%s := %a" s expr e
-  | S_assign (s, e, Some t) -> fprintf ppf "%s : %a := %a" s typ (fst t) expr e
+  | S_assign (s, e) -> fprintf ppf "%s := %a" s expr e
   | S_skip -> fprintf ppf ""
   | S_drop l ->
       let print_list ppf =
@@ -192,13 +191,13 @@ let rec stmt i ppf n =
   | S_if (s, s_1, s_2) ->
       let i' = i + 1 in
       fprintf ppf "IF %s\n{\n%a\n}\n{\n%a\n}" s (stmt i') s_1 (stmt i') s_2
-  | S_if_none (s, s_1, s_2, _) ->
+  | S_if_none (s, s_1, s_2) ->
       let i' = i + 1 in
       fprintf ppf "IF_NONE %s\n{\n%a\n}\n{\n%a\n}" s (stmt i') s_1 (stmt i') s_2
-  | S_if_left (s, s_1, s_2, _) ->
+  | S_if_left (s, s_1, s_2) ->
       let i' = i + 1 in
       fprintf ppf "IF_LEFT %s\n{\n%a\n}\n{\n%a\n}" s (stmt i') s_1 (stmt i') s_2
-  | S_if_cons (s, s_1, _, _, s_2) ->
+  | S_if_cons (s, s_1, s_2) ->
       let i' = i + 1 in
       fprintf ppf "IF_CONS %s\n{\n%a\n}\n{\n%a\n}" s (stmt i') s_1 (stmt i') s_2
   | S_loop (s, (v_1, v_2), b) ->
@@ -215,7 +214,6 @@ let rec stmt i ppf n =
       let i' = i + 1 in
       fprintf ppf "ITER %s := phi(%s, %s)\n{\n%a\n}" s v_1 v_2 (stmt i') b
   | S_failwith s -> fprintf ppf "FAILWITH %s" s
-  | S_cast -> fprintf ppf "CAST"
 
 let func ppf (b, v) = fprintf ppf "@[<1>%s => {\n%a\n}" v (stmt 2) b
 
