@@ -7,8 +7,8 @@ let empty_env = Stack S.empty
 let failed_env = Failed
 
 let next_var var_counter =
-  let () = var_counter := Z.(!var_counter + one) in
-  Printf.sprintf "v%s" (Z.to_string !var_counter)
+  let () = var_counter := !var_counter + 1 in
+  Printf.sprintf "v%s" (string_of_int !var_counter)
 
 exception Stack_failed
 

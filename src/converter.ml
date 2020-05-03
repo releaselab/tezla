@@ -500,7 +500,6 @@ let rec inst_to_stmt counter env (i, a) =
       let v_2, assign_2 = create_assign (E_cdr x) in
       (create_stmt (S_seq (assign_1, assign_2)), push v_1 (push v_2 env'))
 
-let convert_program p =
-  let counter = ref Z.minus_one in
+let convert_program counter p =
   let env = Env.push "parameter_storage" Env.empty_env in
   fst (inst_to_stmt counter env (p.Michelson.Adt.code, []))

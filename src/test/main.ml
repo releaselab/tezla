@@ -5,28 +5,28 @@ let path = Sys.argv.(1)
 let () =
   try
     let adt = Parsing_utils.parse_with_error (path ^ "empty.tz") in
-    let _ = Converter.convert_program adt in
+    let _ = Converter.convert_program (ref (-1)) adt in
     Printf.printf "Test empty: OK\n"
   with _ -> Printf.printf "Test empty: not OK\n"
 
 let () =
   try
     let adt = Parsing_utils.parse_with_error (path ^ "empty_code.tz") in
-    let _ = Converter.convert_program adt in
+    let _ = Converter.convert_program (ref (-1)) adt in
     Printf.printf "Test empty_code: OK\n"
   with _ -> Printf.printf "Test empty_code: not OK\n"
 
 let () =
   try
     let adt = Parsing_utils.parse_with_error (path ^ "loop_left.tz") in
-    let _ = Converter.convert_program adt in
+    let _ = Converter.convert_program (ref (-1)) adt in
     Printf.printf "Test loop_left: OK\n"
   with _ -> Printf.printf "Test loop_left: not OK\n"
 
 let () =
   try
     let adt = Parsing_utils.parse_with_error (path ^ "map.tz") in
-    let _ = Converter.convert_program adt in
+    let _ = Converter.convert_program (ref (-1)) adt in
     Printf.printf "Test map: OK\n"
   with _ -> Printf.printf "Test map: not OK\n"
 
@@ -40,7 +40,7 @@ let () =
           Parsing_utils.parse_with_error
             (path ^ "test" ^ string_of_int i ^ ".tz")
         in
-        let _ = Converter.convert_program adt in
+        let _ = Converter.convert_program (ref (-1)) adt in
         Printf.printf "Test %d: OK\n" i
       with _ as e ->
         Printf.printf "Test %d: not OK\n%s" i (Printexc.to_string e);
@@ -50,6 +50,6 @@ let () =
 let () =
   try
     let adt = Parsing_utils.parse_with_error (path ^ "map.tz") in
-    let p = Converter.convert_program adt in
+    let p = Converter.convert_program (ref (-1)) adt in
     Pp.stmt 1 Format.std_formatter p
   with _ -> ()
