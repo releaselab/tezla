@@ -1,0 +1,3 @@
+parameter (pair (option (list address)) (pair string string));
+storage (pair (list address) string);
+code { ; ; DUP; CAR; DIP { ; CDR }; ; DUP; CAR; DIP { ; CDR }; DIP { ; ; DUP; CAR; DIP { ; CDR } }; DIP { ; DIP { ; DIP { ; ; DUP; CAR; DIP { ; CDR } } } }; SWAP; ; DIP { ; DIP { ; DIP { ; SWAP } } }; ; DIP { ; DIP { ; SWAP } }; DIP { ; SWAP }; ; DIP { ; DIP { ; DIP { ; SWAP } } }; ; DIP { ; DIP { ; SWAP; DUP; DIP { ; SWAP } } }; ; ; COMPARE; EQ; IF {  } { ; ; UNIT; FAILWITH }; SENDER; SWAP; ; DIP { ; DIP { ; PUSH bool False } }; ITER { ; DIP { ; DUP }; ; COMPARE; EQ; SWAP; DIP { ; OR } }; DROP; ; IF {  } { ; ; UNIT; FAILWITH }; IF_NONE {  } { ; DIP { ; DROP } }; NIL operation; ; DIP { ; PAIR }; PAIR }

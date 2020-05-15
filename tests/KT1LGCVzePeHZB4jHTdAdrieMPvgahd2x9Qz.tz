@@ -1,0 +1,3 @@
+parameter string;
+storage (list (pair string (pair mutez (pair timestamp address))));
+code { DUP; DIP { ; CDR }; CAR; SWAP; SENDER; NOW; PAIR; AMOUNT; PAIR; ; DIP { ; DIP { ; DUP }; SWAP }; SWAP; ; DIP { ; DIP { ; DIP { ; DROP } } }; PAIR; CONS; NIL operation; PAIR }

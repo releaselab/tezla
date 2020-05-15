@@ -1,0 +1,3 @@
+parameter (or (lambda unit (list operation)) unit);
+storage key_hash;
+code { ; ; DUP; CAR; DIP { ; CDR }; IF_LEFT { ; PUSH mutez 0; AMOUNT; ; ; COMPARE; EQ; IF {  } { ; ; UNIT; FAILWITH }; ; DIP { ; DUP }; SWAP; IMPLICIT_ACCOUNT; ADDRESS; SENDER; ; ; COMPARE; EQ; IF {  } { ; ; UNIT; FAILWITH }; UNIT; EXEC; PAIR } { ; DROP; NIL operation; PAIR } }

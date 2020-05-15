@@ -1,6 +1,6 @@
 (executables
- (names main test)
- (libraries michelson tezla)
+ (names main)
+ (libraries michelson tezla alcotest cmdliner)
  (flags -g)
  (modes byte))
 
@@ -9,7 +9,3 @@
  (action
   (run ./main.exe ../../../../tests/)))
 
-(rule
- (alias test)
- (action
-  (run ./test.exe ../../../../tests/test.tz)))

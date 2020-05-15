@@ -1,5 +1,0 @@
-(library
- (name tezla)
- (public_name tezla)
- (libraries michelson zarith batteries)
- (synopsis "Michelson front end for Softcheck."))

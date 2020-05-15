@@ -15,5 +15,8 @@
  (synopsis "An instantiation of SCIL for the Michelson language")
  (depends
   (dune :build)
-  (zarith :dev)))
+  (zarith :build)
+  (cmdliner :with-test)
+  (alcotest :with-test)
+  (bisect_ppx (and :dev (>= 2.0.0)))))
 

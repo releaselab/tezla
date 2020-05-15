@@ -47,15 +47,8 @@ let rec typ ppf =
 let rec data ppf =
   let open Michelson.Adt in
   function
-  | D_int n | D_nat n | D_mutez n -> Z.pp_print ppf n
-  | D_string s
-  | D_timestamp s
-  | D_signature s
-  | D_key s
-  | D_key_hash s
-  | D_bytes s
-  | D_address s ->
-      fprintf ppf "%s" s
+  | D_int n -> Z.pp_print ppf n
+  | D_string s | D_bytes s -> fprintf ppf "%s" s
   | D_unit -> fprintf ppf "()"
   | D_bool b ->
       fprintf ppf "%a"
@@ -66,19 +59,11 @@ let rec data ppf =
   | D_left d -> fprintf ppf "Left %a" data d
   | D_right d -> fprintf ppf "Right %a" data d
   | D_some d -> fprintf ppf "Some %a" data d
-  | D_none _ -> fprintf ppf "None"
-  | D_list (_, dl) ->
+  | D_none -> fprintf ppf "None"
+  | D_list dl ->
       let pp_l = pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "; ") data in
       fprintf ppf "{%a}" pp_l dl
-  | D_set (_, dl) ->
-      let pp_l = pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "; ") data in
-      fprintf ppf "{%a}" pp_l dl
-  | D_map (_, dl) ->
-      let print_elem ppf (k, v) = fprintf ppf "Elt %a %a" data k data v in
-      let pp_l =
-        pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "; ") print_elem
-      in
-      fprintf ppf "{%a}" pp_l dl
+  | D_elt (d_1, d_2) -> fprintf ppf "Elt %a %a" data d_1 data d_2
 
 (* | D_instruction of inst *)
 
