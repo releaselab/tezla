@@ -119,3 +119,24 @@ let next_id () =
 let create_stmt stm =
   let id = next_id () in
   { id; stm }
+
+let rec simpl s =
+  match s.stm with
+  | S_seq ({ stm = S_skip; _ }, s) | S_seq (s, { stm = S_skip; _ }) -> simpl s
+  | S_seq (s_1, s_2) -> { s with stm = S_seq (simpl s_1, simpl s_2) }
+  | S_if (c, s_1, s_2) -> { s with stm = S_if (c, simpl s_1, simpl s_2) }
+  | S_if_cons (c, s_1, s_2) ->
+      { s with stm = S_if_cons (c, simpl s_1, simpl s_2) }
+  | S_if_left (c, s_1, s_2) ->
+      { s with stm = S_if_left (c, simpl s_1, simpl s_2) }
+  | S_if_none (c, s_1, s_2) ->
+      { s with stm = S_if_none (c, simpl s_1, simpl s_2) }
+  | S_loop (c, (c_1, c_2), s) ->
+      { s with stm = S_loop (c, (c_1, c_2), simpl s) }
+  | S_loop_left (c, (c_1, c_2), s) ->
+      { s with stm = S_loop_left (c, (c_1, c_2), simpl s) }
+  | S_iter (c, (c_1, c_2), s) ->
+      { s with stm = S_iter (c, (c_1, c_2), simpl s) }
+  | S_map ((x, (x_1, x_2)), (y, (y_1, y_2)), s) ->
+      { s with stm = S_map ((x, (x_1, x_2)), (y, (y_1, y_2)), simpl s) }
+  | S_skip | S_swap | S_dig | S_dug | S_assign _ | S_drop _ | S_failwith _ -> s

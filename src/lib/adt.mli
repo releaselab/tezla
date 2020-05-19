@@ -111,3 +111,5 @@ and func = stmt * string
 and program = typ * typ * func
 
 val create_stmt : stmt_t -> stmt
+
+val simpl : stmt -> stmt

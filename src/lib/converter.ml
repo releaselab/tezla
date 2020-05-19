@@ -505,4 +505,4 @@ let rec inst_to_stmt counter env (i, a) =
 
 let convert_program counter p =
   let env = Env.push "parameter_storage" Env.empty_env in
-  fst (inst_to_stmt counter env (p.Michelson.Adt.code, []))
+  fst (inst_to_stmt counter env (p.Michelson.Adt.code, [])) |> Adt.simpl
