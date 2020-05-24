@@ -1,71 +1,9 @@
 open Format
 open Adt
 
-let simple_comparable_type ppf =
-  let open Michelson.Adt in
-  function
-  | T_int -> fprintf ppf "int"
-  | T_nat -> fprintf ppf "nat"
-  | T_string -> fprintf ppf "string"
-  | T_bytes -> fprintf ppf "bytes"
-  | T_mutez -> fprintf ppf "mutez"
-  | T_bool -> fprintf ppf "bool"
-  | T_key_hash -> fprintf ppf "key_hash"
-  | T_timestamp -> fprintf ppf "timestamp"
-  | T_address -> fprintf ppf "address"
+let typ = Michelson.Pp.typ
 
-let rec comparable_type ppf =
-  let open Michelson.Adt in
-  function
-  | T_simple_comparable_type t -> fprintf ppf "%a" simple_comparable_type t
-  | T_comparable_pair (t_1, t_2) ->
-      fprintf ppf "(pair %a %a)" simple_comparable_type (fst t_1)
-        comparable_type (fst t_2)
-
-let rec typ ppf =
-  let open Michelson.Adt in
-  function
-  | T_comparable t -> fprintf ppf "%a" comparable_type t
-  | T_key -> fprintf ppf "key"
-  | T_unit -> fprintf ppf "unit"
-  | T_signature -> fprintf ppf "signature"
-  | T_option t -> fprintf ppf "option %a" typ (fst t)
-  | T_list t -> fprintf ppf "list %a" typ (fst t)
-  | T_set t -> fprintf ppf "%a" comparable_type (fst t)
-  | T_operation -> fprintf ppf "operation"
-  | T_contract t -> fprintf ppf "(contract %a)" typ (fst t)
-  | T_pair (t_1, t_2) -> fprintf ppf "(pair %a %a)" typ (fst t_1) typ (fst t_2)
-  | T_or (t_1, t_2) -> fprintf ppf "(or  %a %a)" typ (fst t_1) typ (fst t_2)
-  | T_lambda (t_1, t_2) ->
-      fprintf ppf "(lambda %a %a)" typ (fst t_1) typ (fst t_2)
-  | T_map (t_1, t_2) ->
-      fprintf ppf "(map %a %a)" comparable_type (fst t_1) typ (fst t_2)
-  | T_big_map (t_1, t_2) ->
-      fprintf ppf "(big_map %a %a)" comparable_type (fst t_1) typ (fst t_2)
-  | T_chain_id -> fprintf ppf "chain_id"
-
-let rec data ppf =
-  let open Michelson.Adt in
-  function
-  | D_int n -> Z.pp_print ppf n
-  | D_string s | D_bytes s -> fprintf ppf "%s" s
-  | D_unit -> fprintf ppf "()"
-  | D_bool b ->
-      fprintf ppf "%a"
-        (fun ppf -> function true -> fprintf ppf "True"
-          | false -> fprintf ppf "False")
-        b
-  | D_pair (d_1, d_2) -> fprintf ppf "Pair %a %a" data d_1 data d_2
-  | D_left d -> fprintf ppf "Left %a" data d
-  | D_right d -> fprintf ppf "Right %a" data d
-  | D_some d -> fprintf ppf "Some %a" data d
-  | D_none -> fprintf ppf "None"
-  | D_list dl ->
-      let pp_l = pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "; ") data in
-      fprintf ppf "{%a}" pp_l dl
-  | D_elt (d_1, d_2) -> fprintf ppf "Elt %a %a" data d_1 data d_2
-
-(* | D_instruction of inst *)
+let data = Michelson.Pp.data
 
 let rec operation ppf = function
   | O_create_account (e_1, e_2, e_3, e_4) ->
@@ -77,7 +15,7 @@ let rec operation ppf = function
       fprintf ppf "TRANSFER_TOKENS %s %s %s" e_1 e_2 e_3
 
 and expr ppf = function
-  | E_push (d, (t, _)) -> fprintf ppf "PUSH %a %a" typ t data d
+  | E_push (d, t) -> fprintf ppf "PUSH %a %a" typ t data d
   | E_car e -> fprintf ppf "CAR %s" e
   | E_cdr e -> fprintf ppf "CDR %s" e
   | E_abs e -> fprintf ppf "ABS %s" e
@@ -89,8 +27,8 @@ and expr ppf = function
   | E_gt e -> fprintf ppf "GT %s" e
   | E_leq e -> fprintf ppf "LEQ %s" e
   | E_geq e -> fprintf ppf "GEQ %s" e
-  | E_left (e, (t, _)) -> fprintf ppf "LEFT %a %s" typ t e
-  | E_right (e, (t, _)) -> fprintf ppf "RIGHT %a %s" typ t e
+  | E_left (e, t) -> fprintf ppf "LEFT %a %s" typ t e
+  | E_right (e, t) -> fprintf ppf "RIGHT %a %s" typ t e
   | E_some e -> fprintf ppf "SOME %s" e
   | E_cast e -> fprintf ppf "CAST %s" e
   | E_pack e -> fprintf ppf "PACK %s" e
@@ -101,7 +39,7 @@ and expr ppf = function
   | E_sha512 e -> fprintf ppf "SHA512 %s" e
   | E_hash_key e -> fprintf ppf "HASH_KEY %s" e
   | E_unit -> fprintf ppf "UNIT"
-  | E_none t -> fprintf ppf "NONE %a" typ (fst t)
+  | E_none t -> fprintf ppf "NONE %a" typ t
   | E_add (e_1, e_2) -> fprintf ppf "ADD %s %s" e_1 e_2
   | E_sub (e_1, e_2) -> fprintf ppf "SUB %s %s" e_1 e_2
   | E_mul (e_1, e_2) -> fprintf ppf "MUL %s %s" e_1 e_2
@@ -118,11 +56,12 @@ and expr ppf = function
   | E_mem (e_1, e_2) -> fprintf ppf "MEM %s %s" e_1 e_2
   | E_get (e_1, e_2) -> fprintf ppf "GET %s %s" e_1 e_2
   | E_concat (e_1, e_2) -> fprintf ppf "CONCAT %s %s" e_1 e_2
+  | E_concat_list e -> fprintf ppf "CONCAT %s" e
   | E_update (e_1, e_2, e_3) -> fprintf ppf "UPDATE %s %s %s" e_1 e_2 e_3
   | E_slice (e_1, e_2, e_3) -> fprintf ppf "SLICE %s %s %s" e_1 e_2 e_3
   | E_check_signature (e_1, e_2, e_3) ->
       fprintf ppf "CHECK_SIGNATURE %s %s %s" e_1 e_2 e_3
-  | E_unpack (t, e) -> fprintf ppf "UNPACK %a %s" typ (fst t) e
+  | E_unpack (t, e) -> fprintf ppf "UNPACK %a %s" typ t e
   | E_self -> fprintf ppf "SELF"
   | E_now -> fprintf ppf "NOW"
   | E_amount -> fprintf ppf "AMOUNT"
@@ -139,19 +78,17 @@ and expr ppf = function
   | E_isnat e -> fprintf ppf "ISNAT %s" e
   | E_int_of_nat e -> fprintf ppf "INT %s" e
   | E_chain_id -> fprintf ppf "CHAIN_ID"
-  | E_lambda (t_1, t_2, _) ->
-      fprintf ppf "LAMBDA %a %a {...}" typ (fst t_1) typ (fst t_2)
+  | E_lambda (t_1, t_2, _) -> fprintf ppf "LAMBDA %a %a {...}" typ t_1 typ t_2
   | E_exec (e_1, e_2) -> fprintf ppf "EXEC %s %s" e_1 e_2
   | E_create_contract_address _ -> (* TODO: *) fprintf ppf ""
   | E_create_account_address _ -> (* TODO: *) fprintf ppf ""
   | E_operation o -> operation ppf o
   | E_dup s -> fprintf ppf "DUP %s" s
-  | E_nil t -> fprintf ppf "NIL %a" typ (fst t)
-  | E_empty_set t -> fprintf ppf "EMPTY_SET %a" comparable_type (fst t)
-  | E_empty_map (t_k, t_v) ->
-      fprintf ppf "EMPTY_MAP %a %a" comparable_type (fst t_k) typ (fst t_v)
+  | E_nil t -> fprintf ppf "NIL %a" typ t
+  | E_empty_set t -> fprintf ppf "EMPTY_SET %a" typ t
+  | E_empty_map (t_k, t_v) -> fprintf ppf "EMPTY_MAP %a %a" typ t_k typ t_v
   | E_empty_big_map (t_k, t_v) ->
-      fprintf ppf "EMPTY_BIG_MAP %a %a" comparable_type (fst t_k) typ (fst t_v)
+      fprintf ppf "EMPTY_BIG_MAP %a %a" typ t_k typ t_v
   | E_append (v_1, v_2) -> fprintf ppf "append(%s, %s)" v_1 v_2
   | E_phi (v_1, v_2) -> fprintf ppf "phi(%s, %s)" v_1 v_2
   | E_special_nil_list -> fprintf ppf "[]"

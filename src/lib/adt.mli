@@ -1,8 +1,6 @@
-type comparable_type = Michelson.Adt.comparable_type_annotated
+type typ = Michelson.Adt.typ Michelson.Adt.t
 
-type typ = Michelson.Adt.typ_annotated
-
-type data = Michelson.Adt.data
+type data = Michelson.Adt.data Michelson.Adt.t
 
 type operation =
   | O_create_contract of Michelson.Adt.program * string * string * string
@@ -47,6 +45,7 @@ and expr =
   | E_update of string * string * string
   | E_cast of string
   | E_concat of string * string
+  | E_concat_list of string
   | E_slice of string * string * string
   | E_pack of string
   | E_unpack of typ * string
@@ -79,9 +78,9 @@ and expr =
   | E_exec of string * string
   | E_dup of string
   | E_nil of typ
-  | E_empty_set of comparable_type
-  | E_empty_map of comparable_type * typ
-  | E_empty_big_map of comparable_type * typ
+  | E_empty_set of typ
+  | E_empty_map of typ * typ
+  | E_empty_big_map of typ * typ
   | E_append of string * string
   | E_special_nil_list
   | E_phi of string * string
@@ -113,3 +112,5 @@ and program = typ * typ * func
 val create_stmt : stmt_t -> stmt
 
 val simpl : stmt -> stmt
+
+val create_typ : Michelson.Adt.typ -> Michelson.Adt.typ Michelson.Adt.t

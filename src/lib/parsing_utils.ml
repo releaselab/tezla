@@ -7,14 +7,23 @@ let print_position outx lexbuf =
 
 let parse_with_error filename =
   let open Michelson in
-  let lexbuf = Lexing.from_channel (open_in filename) in
-  try Parser.start Lexer.next_token lexbuf with
+  let in_c = open_in filename in
+  let lexbuf = Lexing.from_channel in_c in
+  try
+    let res = Parser.start Lexer.next_token lexbuf in
+    let () = close_in in_c in
+    res
+  with
   | Lexer.Lexing_error msg as e ->
-      Printf.fprintf stderr "%a: %s\n" print_position lexbuf msg;
+      let () = Printf.fprintf stderr "%a: %s\n" print_position lexbuf msg in
+      let () = close_in in_c in
       raise e
   | Parser.Error as e ->
-      Printf.fprintf stderr "%s%a: syntax error\n" filename print_position
-        lexbuf;
+      let () =
+        Printf.fprintf stderr "%s%a: syntax error\n" filename print_position
+          lexbuf
+      in
+      let () = close_in in_c in
       raise e
 
 let parse filename =

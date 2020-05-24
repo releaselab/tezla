@@ -1,6 +1,8 @@
 module S = Functional_stack
 
-type env = Failed | Stack of string Functional_stack.t
+type elem = string * Adt.typ
+
+type env = Failed | Stack of elem Functional_stack.t
 
 let empty_env = Stack S.empty
 
