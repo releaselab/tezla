@@ -1,0 +1,6 @@
+parameter nat;
+storage int;
+code { CAR; DUP; PUSH nat 0; COMPARE; EQ;
+       IF { PUSH int -5; MUL } { PUSH int -2; MUL };
+       DUP; DUP; PUSH int- 0; COMPARE; LT; IF { MUL } { SUB};
+       NIL operation; PAIR }

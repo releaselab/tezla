@@ -1,0 +1,3 @@
+parameter unit;
+storage int;
+code { DUP; CDR; SWAP; CAR; NIL operation; PUSH address "KT1SQTPGMJEwtKPhrqFG2vvrte7eNr2D6AFw"; CONTRACT int; IF_NONE { PUSH unit Unit; FAILWITH } {  }; PUSH mutez 0; PUSH int 42; TRANSFER_TOKENS; CONS; SWAP; DROP; PAIR }

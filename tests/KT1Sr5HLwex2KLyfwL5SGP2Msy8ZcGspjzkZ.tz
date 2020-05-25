@@ -1,0 +1,3 @@
+parameter (or (pair int (pair address address)) (or (pair (pair address int) (pair int (pair address address))) (pair int (pair (option address) (option address)))));
+storage unit;
+code { DUP; CDR; SWAP; CAR; IF_LEFT { DROP } { IF_LEFT { DROP } { DROP } }; NIL operation; PAIR }

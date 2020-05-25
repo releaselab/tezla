@@ -1,0 +1,3 @@
+parameter unit;
+storage (pair (map string (pair int (pair int int))) (set address));
+code { CDR; NIL operation; PAIR }

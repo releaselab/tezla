@@ -1,0 +1,3 @@
+parameter (pair (map string (or string int)) nat);
+storage unit;
+code { FAILWITH }

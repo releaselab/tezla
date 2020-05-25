@@ -1,0 +1,3 @@
+parameter unit;
+storage (pair (pair (pair (pair (option bytes) int) int) (option string)) bytes);
+code { CDR; NIL operation; PAIR }

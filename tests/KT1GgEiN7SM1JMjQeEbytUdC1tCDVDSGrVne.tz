@@ -1,0 +1,3 @@
+parameter address;
+storage (pair (big_map address bool) address);
+code { DUP; CDR; CDR; DUP; SENDER; COMPARE; NEQ; IF { PUSH string "Only certifier is allowed to certify"; FAILWITH } { SWAP; DUP; CDR; CAR; SWAP; CAR; DIP { PUSH bool True; SOME }; UPDATE; PAIR; NIL operation; PAIR } }

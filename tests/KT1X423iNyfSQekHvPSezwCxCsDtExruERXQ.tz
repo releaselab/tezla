@@ -1,0 +1,3 @@
+parameter (list (pair nat (pair address nat)));
+storage unit;
+code { FAILWITH }

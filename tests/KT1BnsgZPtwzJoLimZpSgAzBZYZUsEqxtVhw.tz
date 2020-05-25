@@ -1,0 +1,3 @@
+parameter nat;
+storage (map (pair string nat) nat);
+code { DUP; DIP { CDR }; CAR; DUP; DIP { SOME }; PUSH string "hello"; PAIR; UPDATE; NIL operation; PAIR }

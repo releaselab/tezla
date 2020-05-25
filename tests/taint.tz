@@ -1,0 +1,18 @@
+parameter unit;
+storage (pair timestamp (pair mutez (contract unit)));
+code { CDR;
+       DUP;
+       CAR;
+       NOW;
+       COMPARE;
+       LT;
+       IF {UNIT; FAILWITH} {};
+       DUP;
+       CDR;
+       DUP;
+       CAR;
+       DIP{CDR};
+       UNIT;
+       TRANSFER_TOKENS;
+       NIL operation; SWAP; CONS;
+       PAIR}     

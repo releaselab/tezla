@@ -1,7 +1,15 @@
-parameter (or (or (nat) (nat)) (unit)) ;
+parameter (or (or nat nat) unit) ;
 storage int ;
-code { AMOUNT ; PUSH mutez 0 ; COMPARE ; EQ ; IF {} {UNIT ; FAILWITH} ; DUP ; CAR ; DIP { CDR } ;
+code { AMOUNT ;
+       PUSH mutez 0 ;
+       COMPARE ;
+       EQ ;
+       IF {} { UNIT ; FAILWITH } ;
+       DUP ;
+       CAR ;
+       DIP { CDR } ;
        IF_LEFT
-        { IF_LEFT { ADD } { SWAP ; SUB } }
-        { DROP ; DROP ; PUSH int 0 } ;
-       NIL operation ; PAIR }
+         { IF_LEFT { ADD } { SWAP ; SUB } }
+         { DROP ; DROP ; PUSH int 0 } ;
+       NIL operation ;
+       PAIR }

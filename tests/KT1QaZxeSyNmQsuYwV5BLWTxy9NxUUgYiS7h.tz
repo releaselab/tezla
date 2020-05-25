@@ -1,0 +1,3 @@
+parameter int;
+storage (pair (pair (big_map string (pair (set bytes) (map bytes (pair (pair (pair string string) (pair string string)) (pair (pair string string) string))))) (set string)) int);
+code { DUP; CDR; NIL operation; PAIR; DIP { DROP } }

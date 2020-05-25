@@ -1,0 +1,3 @@
+parameter address;
+storage unit;
+code { CAR; CONTRACT unit; IF_NONE { UNIT; FAILWITH } { DROP }; UNIT; NIL operation; PAIR }

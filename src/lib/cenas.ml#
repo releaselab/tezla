@@ -1,0 +1,77 @@
+open Env
+
+let rec reverse_converter =
+  let open Michelson.Adt in
+  let open Adt in
+  function
+  | S_assign (_, e) -> (
+      match e with
+      | E_balance -> I_balance
+      | E_blake2b _ -> I_blake2b
+      | E_car _ -> I_car
+      | E_cast _ -> I_cast
+      | E_cdr _ -> I_cdr
+      | E_chain_id -> I_chain_id
+      | E_check_signature _ -> I_check_signature
+      | E_compare _ -> I_compare
+      | E_concat _ -> I_concat
+      | E_cons _ -> I_cons
+      | E_div _ -> I_ediv
+      | E_dup _ -> I_dup
+      | E_empty_big_map (t_1, t_2) -> I_empty_big_map (t_1, t_2)
+      | E_empty_map (t_1, t_2) -> I_empty_map (t_1, t_2)
+      | E_empty_set (t_1, t_2) -> I_empty_set (t_1, t_2)
+      | E_eq _ -> I_eq
+      | E_exec _ -> I_exec
+      | E_geq _ -> I_ge
+      | E_get _ -> I_get
+      | E_gt _ -> I_gt
+      | E_hash_key _ -> I_hash_key
+      | E_implicit_account _ -> I_implicit_account
+      | E_int_of_nat _ -> I_int
+      | E_isnat _ -> I_isnat
+      (* | E_lambda (t_1, t_2, (f, _)) ->
+          I_lambda (t_1, t_2, reverse_converter f.stm) *)
+      | E_self -> I_self
+      | E_sender -> I_sender
+      | E_sha256 _ -> I_sha256
+      | E_sha512 _ -> I_sha512
+      | E_shiftL _ -> I_lsl
+      | E_shiftR _ -> I_lsr
+      | E_size _ -> I_size
+      | E_slice _ -> I_slice
+      | E_some _ -> I_some
+      | E_source -> I_source
+      | E_steps_to_quota -> I_steps_to_quota
+      | E_sub _ -> I_sub
+      | E_unit -> I_unit
+      | E_unpack (t, _) -> I_unpack t
+      | E_update _ -> I_update
+      | E_xor _ -> I_xor
+      | E_now -> I_now
+      | E_amount -> I_amount
+      | E_and _ -> I_and
+      | E_special_nil_list -> I_noop
+      | E_push (d, t) -> I_push (t, d)
+      | E_abs _ -> I_abs
+      | E_neg _ -> I_neg
+      | E_not _ -> I_not
+      | E_add _ -> I_add
+      | E_mul _ -> I_mul
+      | E_mod _ -> I_noop
+      | E_or _ -> I_or
+      | E_neq _ -> I_neq
+      | E_lt _ -> I_lt
+      | E_leq _ -> I_le
+      | E_pair _ -> I_pair
+      | E_none t -> I_none t
+      | E_mem _ -> I_mem
+      | E_pack _ -> I_pack
+      | E_nil t -> I_nil t )
+  | S_dig -> I_dig
+  | S_drop n when n = Z.one -> I_drop
+  | S_drop n -> I_drop_n n
+  | S_dug -> I_dug
+  | S_failwith _ -> I_failwith
+  | S_if (_, b_t, b_f) -> I_if (reverse_converter b_t, reverse_converter b_f)
+    | S_if_cons 

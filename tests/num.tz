@@ -1,0 +1,6 @@
+storage nat;
+parameter unit;
+code { DROP ;
+       PUSH nat 4; PUSH nat 3; ADD;
+       NIL operation ;
+       PAIR };
