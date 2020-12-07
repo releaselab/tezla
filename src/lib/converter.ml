@@ -16,7 +16,7 @@ let join counter env_t env_f =
         | [], [], [] -> acc
         | (after, _) :: env_after, (t, _) :: env_t, (f, _) :: env_f when t <> f
           ->
-            let s = create_stmt (S_assign (after, E_phi (t, f))) in
+            let s = create_stmt (S_assign ([ after ], E_phi (t, f))) in
             phi (create_stmt (S_seq (s, acc))) env_after env_t env_f
         | _ :: env_after, _ :: env_t, _ :: env_f ->
             phi acc env_after env_t env_f
@@ -130,8 +130,8 @@ let rec inst_to_stmt contract_t counter env =
     loop
   in
   let next_var () = next_var counter in
-  let create_assign e =
-    let v = next_var () in
+  let create_assign i e =
+    let v = List.init i (fun _ -> next_var ()) in
     (v, create_stmt (S_assign (v, e)))
   in
   let rec aux i =
@@ -140,7 +140,7 @@ let rec inst_to_stmt contract_t counter env =
       | I_push (t, x) ->
           assert (Michelson.Adt.assert_type x t);
           let e = E_push (x, t) in
-          let v, assign = create_assign e in
+          let v, assign = create_assign 1 e in
           (assign, push (v, t) env)
       | I_seq (i_1, i_2) ->
           let s_1, env_1 = inst_to_stmt counter env i_1 in
@@ -687,7 +687,7 @@ let rec inst_to_stmt contract_t counter env =
       | Michelson.Location.Pos (s, e) ->
           Printf.fprintf stderr "line: %d col: %d-%d\n" s.lin s.col e.col;
           raise exn
-      | _ -> raise exn )
+      | _ -> raise exn)
   in
   aux
 

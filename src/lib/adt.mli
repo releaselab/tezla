@@ -87,7 +87,7 @@ and expr =
 
 and stmt_t =
   | S_seq of stmt * stmt
-  | S_assign of string * expr
+  | S_assign of string list * expr
   | S_skip
   | S_drop of string list
   | S_swap

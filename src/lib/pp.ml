@@ -1,3 +1,4 @@
+open Batteries
 open Printf
 open Adt
 
@@ -104,57 +105,60 @@ let string_of_list f l =
       | [] -> ""
       | h :: tl ->
           aux
-            ( if String.length acc > 0 then sprintf "%s; %s" acc (f h)
-            else sprintf "%s" (f h) )
+            (if String.length acc > 0 then sprintf "%s; %s" acc (f h)
+            else sprintf "%s" (f h))
             tl
     in
     aux "" l
   in
   "[ " ^ values ^ " ]"
 
-let rec print_stmt i ppf n =
+let rec print_stmt i ch n =
   match n.stm with
   | S_seq ({ id = _; stm = S_skip }, s) | S_seq (s, { id = _; stm = S_skip }) ->
-      print_stmt i ppf s
+      print_stmt i ch s
   | S_seq (s_1, s_2) ->
-      fprintf ppf "%a;\n%a" (print_stmt i) s_1 (print_stmt i) s_2
-  | S_assign (s, e) -> fprintf ppf "%s := %s" s (string_of_expr e)
-  | S_skip -> fprintf ppf ""
-  | S_drop l -> fprintf ppf "DROP %s" (string_of_list (fun x -> x) l)
-  | S_swap -> fprintf ppf "SWAP"
-  | S_dig -> fprintf ppf "DIG"
-  | S_dug -> fprintf ppf "DUG"
+      fprintf ch "%a;\n%a" (print_stmt i) s_1 (print_stmt i) s_2
+  | S_assign (s, e) ->
+      fprintf ch "%a := %s"
+        (List.print ?sep:(Some ", ") (fun ch -> fprintf ch "%s"))
+        s (string_of_expr e)
+  | S_skip -> fprintf ch ""
+  | S_drop l -> fprintf ch "DROP %s" (string_of_list (fun x -> x) l)
+  | S_swap -> fprintf ch "SWAP"
+  | S_dig -> fprintf ch "DIG"
+  | S_dug -> fprintf ch "DUG"
   | S_if (s, s_1, s_2) ->
       let i' = i + 1 in
-      fprintf ppf "IF %s\n{\n%a\n}\n{\n%a\n}" s (print_stmt i') s_1
+      fprintf ch "IF %s\n{\n%a\n}\n{\n%a\n}" s (print_stmt i') s_1
         (print_stmt i') s_2
   | S_if_none (s, s_1, s_2) ->
       let i' = i + 1 in
-      fprintf ppf "IF_NONE %s\n{\n%a\n}\n{\n%a\n}" s (print_stmt i') s_1
+      fprintf ch "IF_NONE %s\n{\n%a\n}\n{\n%a\n}" s (print_stmt i') s_1
         (print_stmt i') s_2
   | S_if_left (s, s_1, s_2) ->
       let i' = i + 1 in
-      fprintf ppf "IF_LEFT %s\n{\n%a\n}\n{\n%a\n}" s (print_stmt i') s_1
+      fprintf ch "IF_LEFT %s\n{\n%a\n}\n{\n%a\n}" s (print_stmt i') s_1
         (print_stmt i') s_2
   | S_if_cons (s, s_1, s_2) ->
       let i' = i + 1 in
-      fprintf ppf "IF_CONS %s\n{\n%a\n}\n{\n%a\n}" s (print_stmt i') s_1
+      fprintf ch "IF_CONS %s\n{\n%a\n}\n{\n%a\n}" s (print_stmt i') s_1
         (print_stmt i') s_2
   | S_loop (s, (v_1, v_2), b) ->
       let i' = i + 1 in
-      fprintf ppf "LOOP %s := phi(%s, %s)\n{\n%a\n}" s v_1 v_2 (print_stmt i') b
+      fprintf ch "LOOP %s := phi(%s, %s)\n{\n%a\n}" s v_1 v_2 (print_stmt i') b
   | S_loop_left (s, (v_1, v_2), b) ->
       let i' = i + 1 in
-      fprintf ppf "LOOP_LEFT %s := phi(%s, %s)\n{\n%a\n}" s v_1 v_2
+      fprintf ch "LOOP_LEFT %s := phi(%s, %s)\n{\n%a\n}" s v_1 v_2
         (print_stmt i') b
   | S_map ((c, (c_1, c_2)), (r, (r_1, r_2)), b) ->
       let i' = i + 1 in
-      fprintf ppf "MAP %s := phi(%s, %s) with %s := phi(%s, %s)\n{\n%a\n}" c c_1
+      fprintf ch "MAP %s := phi(%s, %s) with %s := phi(%s, %s)\n{\n%a\n}" c c_1
         c_2 r r_1 r_2 (print_stmt i') b
   | S_iter (s, (v_1, v_2), b) ->
       let i' = i + 1 in
-      fprintf ppf "ITER %s := phi(%s, %s)\n{\n%a\n}" s v_1 v_2 (print_stmt i') b
-  | S_failwith s -> fprintf ppf "FAILWITH %s" s
+      fprintf ch "ITER %s := phi(%s, %s)\n{\n%a\n}" s v_1 v_2 (print_stmt i') b
+  | S_failwith s -> fprintf ch "FAILWITH %s" s
 
 let func ppf (b, v) = fprintf ppf "@[<1>%s => {\n%a\n}" v (print_stmt 2) b
 
