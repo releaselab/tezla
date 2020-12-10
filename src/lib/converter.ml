@@ -7,16 +7,17 @@ let join counter env_t env_f =
   | Stack env_t, Stack env_f ->
       let env_after =
         List.map2
-          (fun (v, v_t) (f, _) ->
-            if v = f then (v, v_t) else (next_var counter, v_t))
+          (fun v_t v_f ->
+            if v_t.var_name = v_f.var_name then v_t
+            else { var_name = next_var counter; var_type = v_t.var_type })
           env_t env_f
       in
       let rec phi acc env_after env_t env_f =
         match (env_after, env_t, env_f) with
         | [], [], [] -> acc
-        | (after, _) :: env_after, (t, _) :: env_t, (f, _) :: env_f when t <> f
-          ->
-            let s = create_stmt (S_assign ([ after ], E_phi (t, f))) in
+        | v_after :: env_after, v_t :: env_t, v_f :: env_f
+          when v_t.var_name <> v_f.var_name ->
+            let s = create_stmt (S_assign (v_after, E_phi (v_t, v_f))) in
             phi (create_stmt (S_seq (s, acc))) env_after env_t env_f
         | _ :: env_after, _ :: env_t, _ :: env_f ->
             phi acc env_after env_t env_f
@@ -30,7 +31,7 @@ let join counter env_t env_f =
 
 let unlift_option_t t =
   let open Michelson.Adt in
-  match t.d with
+  match t with
   | T_option t -> t
   | _ ->
       let () =
@@ -41,7 +42,7 @@ let unlift_option_t t =
 
 let car_t t =
   let open Michelson.Adt in
-  match t.d with
+  match t with
   | T_pair (t, _) -> t
   | _ ->
       let () =
@@ -52,7 +53,7 @@ let car_t t =
 
 let cdr_t t =
   let open Michelson.Adt in
-  match t.d with
+  match t with
   | T_pair (_, t) -> t
   | _ ->
       let () =
@@ -63,7 +64,7 @@ let cdr_t t =
 
 let unlift_left_t t =
   let open Michelson.Adt in
-  match t.d with
+  match t with
   | T_or (t, _) -> t
   | _ ->
       let () =
@@ -74,7 +75,7 @@ let unlift_left_t t =
 
 let unlift_right_t t =
   let open Michelson.Adt in
-  match t.d with
+  match t with
   | T_or (_, t) -> t
   | _ ->
       let () =
@@ -85,7 +86,7 @@ let unlift_right_t t =
 
 let list_elem_t t =
   let open Michelson.Adt in
-  match t.d with
+  match t with
   | T_list t -> t
   | _ ->
       let () =
@@ -96,10 +97,10 @@ let list_elem_t t =
 
 let map_iter_elem_t t =
   let open Michelson.Adt in
-  match t.d with
+  match t with
   | T_list t -> t
   | T_set t -> t
-  | T_map (k, v) | T_big_map (k, v) -> Adt.create_typ (T_pair (k, v))
+  | T_map (k, v) | T_big_map (k, v) -> T_pair (k, v)
   | _ ->
       let () =
         Format.fprintf Format.err_formatter
@@ -110,7 +111,7 @@ let map_iter_elem_t t =
 
 let lambda_t t =
   let open Michelson.Adt in
-  match t.d with
+  match t with
   | T_lambda (_, t) -> t
   | _ ->
       let () =
@@ -130,119 +131,116 @@ let rec inst_to_stmt contract_t counter env =
     loop
   in
   let next_var () = next_var counter in
-  let create_assign i e =
-    let v = List.init i (fun _ -> next_var ()) in
+  let create_assign e =
+    let var_name = next_var () in
+    let var_type = Typer.type_expr e in
+    let v = { var_name; var_type } in
     (v, create_stmt (S_assign (v, e)))
   in
   let rec aux i =
     try
-      match i.d with
+      match i with
       | I_push (t, x) ->
           assert (Michelson.Adt.assert_type x t);
           let e = E_push (x, t) in
-          let v, assign = create_assign 1 e in
-          (assign, push (v, t) env)
+          let v, assign = create_assign e in
+          (assign, push v env)
       | I_seq (i_1, i_2) ->
           let s_1, env_1 = inst_to_stmt counter env i_1 in
           let s_2, env_2 = inst_to_stmt counter env_1 i_2 in
           (create_stmt (S_seq (s_1, s_2)), env_2)
       | I_drop ->
-          let (x, _), env' = pop env in
-          (create_stmt (S_drop [ x ]), env')
+          let v, env' = pop env in
+          (create_stmt (S_drop [ v ]), env')
       | I_drop_n n ->
           let env', l =
             loop_n
               (fun (env, l) _ ->
-                let (x, _), env = pop env in
-                (env, x :: l))
+                let v, env = pop env in
+                (env, v :: l))
               (env, []) n
           in
           (create_stmt (S_drop l), env')
       | I_dup ->
-          let x, t = peek env in
-          let v, assign = create_assign (E_dup x) in
-          (assign, push (v, t) env)
+          let v = peek env in
+          let v', assign = create_assign (E_dup v) in
+          (assign, push v' env)
       | I_dig n -> (create_stmt S_dig, dig env n)
       | I_dug n -> (create_stmt S_dug, dug env n)
       | I_swap ->
           let env' = swap env in
           (create_stmt S_swap, env')
       | I_some ->
-          let (x, t), env' = pop env in
-          let v, assign = create_assign (E_some x) in
-          (assign, push (v, create_typ (T_option t)) env')
+          let v, env' = pop env in
+          let v', assign = create_assign (E_some v) in
+          (assign, push v' env')
       | I_none t ->
           let v, assign = create_assign (E_none t) in
-          (assign, push (v, create_typ (T_option t)) env)
+          (assign, push v env)
       | I_unit ->
           let v, assign = create_assign E_unit in
-          (assign, push (v, create_typ T_unit) env)
+          (assign, push v env)
       | I_if_none (i_t, i_f) ->
-          let (x, t), env' = pop env in
+          let v, env' = pop env in
           let s_t, env_t = inst_to_stmt counter env' i_t in
-          let v, assign = create_assign (E_unlift_option x) in
-          let t = unlift_option_t t in
-          let s_f, env_f = inst_to_stmt counter (push (v, t) env') i_f in
+          let v', assign = create_assign (E_unlift_option v) in
+          let s_f, env_f = inst_to_stmt counter (push v' env') i_f in
           let env', phis = join counter env_t env_f in
           let s_f = create_stmt (S_seq (assign, s_f)) in
           let s =
-            create_stmt (S_seq (create_stmt (S_if_none (x, s_t, s_f)), phis))
+            create_stmt (S_seq (create_stmt (S_if_none (v, s_t, s_f)), phis))
           in
           (s, env')
-      | I_if_some (i_t, i_f) -> aux { i with d = I_if_none (i_f, i_t) }
+      | I_if_some (i_t, i_f) -> aux (I_if_none (i_f, i_t))
       | I_pair ->
-          let (x_1, t_1), env' = pop env in
-          let (x_2, t_2), env' = pop env' in
-          let v, assign = create_assign (E_pair (x_1, x_2)) in
-          (assign, push (v, create_typ (T_pair (t_1, t_2))) env')
+          let v_1, env' = pop env in
+          let t_2, env' = pop env' in
+          let v, assign = create_assign (E_pair (v_1, t_2)) in
+          (assign, push v env')
       | I_car ->
-          let (x, t), env' = pop env in
-          let t = car_t t in
-          let v, assign = create_assign (E_car x) in
-          (assign, push (v, t) env')
+          let v, env' = pop env in
+          let v', assign = create_assign (E_car v) in
+          (assign, push v' env')
       | I_cdr ->
-          let (x, t), env' = pop env in
-          let t = cdr_t t in
-          let v, assign = create_assign (E_cdr x) in
-          (assign, push (v, t) env')
+          let v, env' = pop env in
+          let v', assign = create_assign (E_cdr v) in
+          (assign, push v' env')
       | I_left t_r ->
-          let (x, t_l), env' = pop env in
-          let v, assign = create_assign (E_left (x, t_r)) in
-          (assign, push (v, create_typ (T_or (t_l, t_r))) env')
+          let v, env' = pop env in
+          let v', assign = create_assign (E_left (v, t_r)) in
+          (assign, push v' env')
       | I_right t_l ->
-          let (x, t_r), env' = pop env in
-          let v, assign = create_assign (E_right (x, t_l)) in
-          (assign, push (v, create_typ (T_or (t_l, t_r))) env')
+          let v, env' = pop env in
+          let v', assign = create_assign (E_right (v, t_l)) in
+          (assign, push v' env')
       | I_if_left (i_t, i_f) ->
-          let (x, t), env' = pop env in
-          let e = E_unlift_or x in
-          let v_l, assign_l = create_assign e in
-          let v_r, assign_r = create_assign e in
-          let t_l, t_r = (unlift_left_t t, unlift_right_t t) in
-          let env_t = push (v_l, t_l) env' in
-          let env_f = push (v_r, t_r) env' in
+          let v, env' = pop env in
+          let e_l = E_unlift_or_left v in
+          let e_r = E_unlift_or_left v in
+          let v_l, assign_l = create_assign e_l in
+          let v_r, assign_r = create_assign e_r in
+          let env_t = push v_l env' in
+          let env_f = push v_r env' in
           let s_t, env_t = inst_to_stmt counter env_t i_t in
           let s_f, env_f = inst_to_stmt counter env_f i_f in
           let env', phis = join counter env_t env_f in
           let s_t = create_stmt (S_seq (assign_l, s_t)) in
           let s_f = create_stmt (S_seq (assign_r, s_f)) in
           let s =
-            create_stmt (S_seq (create_stmt (S_if_left (x, s_t, s_f)), phis))
+            create_stmt (S_seq (create_stmt (S_if_left (v, s_t, s_f)), phis))
           in
           (s, env')
-      | I_if_right (i_t, i_f) ->
-          inst_to_stmt counter env { i with d = I_if_left (i_f, i_t) }
+      | I_if_right (i_t, i_f) -> inst_to_stmt counter env (I_if_left (i_f, i_t))
       | I_nil t ->
           let v, assign = create_assign (E_nil t) in
-          (assign, push (v, create_typ (T_list t)) env)
+          (assign, push v env)
       | I_cons ->
-          let (x_1, _), env' = pop env in
-          let (x_2, t), env' = pop env' in
-          let v, assign = create_assign (E_cons (x_1, x_2)) in
-          (assign, push (v, t) env')
+          let v_1, env' = pop env in
+          let v_2, env' = pop env' in
+          let v, assign = create_assign (E_cons (v_1, v_2)) in
+          (assign, push v env')
       | I_if_cons (i_t, i_f) ->
-          let (c, t_l), env' = pop env in
-          let t_hd = list_elem_t t_l in
+          let c, env' = pop env in
           let v_hd, assign_hd =
             let e_hd = E_hd c in
             create_assign e_hd
@@ -251,7 +249,7 @@ let rec inst_to_stmt contract_t counter env =
             let e_tl = E_tl c in
             create_assign e_tl
           in
-          let env_t = push (v_hd, t_hd) (push (v_tl, t_l) env') in
+          let env_t = push v_hd (push v_tl env') in
           let env_f = env' in
           let s_t, env_t = inst_to_stmt counter env_t i_t in
           let s_f, env_f = inst_to_stmt counter env_f i_f in
@@ -265,33 +263,32 @@ let rec inst_to_stmt contract_t counter env =
           in
           (s, env')
       | I_size ->
-          let (x, _), env' = pop env in
-          let v, assign = create_assign (E_size x) in
-          (assign, push (v, create_typ T_nat) env')
+          let v, env' = pop env in
+          let v', assign = create_assign (E_size v) in
+          (assign, push v' env')
       | I_empty_set t ->
           let v, assign = create_assign (E_empty_set t) in
-          (assign, push (v, create_typ (T_set t)) env)
+          (assign, push v env)
       | I_empty_map (t_k, t_v) ->
           let v, assign = create_assign (E_empty_map (t_k, t_v)) in
-          (assign, push (v, create_typ (T_map (t_k, t_v))) env)
+          (assign, push v env)
       | I_empty_big_map (t_k, t_v) ->
           let v, assign = create_assign (E_empty_big_map (t_k, t_v)) in
-          (assign, push (v, create_typ (T_big_map (t_k, t_v))) env)
+          (assign, push v env)
       | I_map b ->
-          let (c, t_l), env' = pop env in
-          let t_hd = map_iter_elem_t t_l in
+          let c, env' = pop env in
           let empty_list, empty_list_assign =
-            create_assign E_special_nil_list
+            create_assign (E_special_nil_list c.var_type)
           in
-          let loop_var = next_var () in
-          let result = next_var () in
+          let loop_var = { var_name = next_var (); var_type = c.var_type } in
           let hd, assign_hd = create_assign (E_hd loop_var) in
           let body, env' =
-            let body_env = push (hd, t_hd) env' in
+            let body_env = push hd env' in
             inst_to_stmt counter body_env b
           in
           let tl, assign_tl = create_assign (E_tl loop_var) in
-          let (x, t), env' = pop env' in
+          let x, env' = pop env' in
+          let result = { var_name = next_var (); var_type = x.var_type } in
           let append, assign_append = create_assign (E_append (result, x)) in
           let body =
             create_stmt
@@ -312,14 +309,13 @@ let rec inst_to_stmt contract_t counter env =
                           (result, (empty_list, append)),
                           body )) ))
           in
-          (s, push (result, t) env')
+          (s, push result env')
       | I_iter b ->
-          let (c, t_l), env' = pop env in
-          let t_hd = map_iter_elem_t t_l in
-          let loop_var = next_var () in
+          let c, env' = pop env in
+          let loop_var = { var_name = next_var (); var_type = c.var_type } in
           let hd, assign_hd = create_assign (E_hd loop_var) in
           let body, env' =
-            let body_env = push (hd, t_hd) env' in
+            let body_env = push hd env' in
             inst_to_stmt counter body_env b
           in
           let tl, assign_tl = create_assign (E_tl loop_var) in
@@ -330,28 +326,23 @@ let rec inst_to_stmt contract_t counter env =
           let s = create_stmt (S_iter (loop_var, (c, tl), body)) in
           (s, env')
       | I_mem ->
-          let (elt, _), env' = pop env in
-          let (set, _), env' = pop env' in
+          let elt, env' = pop env in
+          let set, env' = pop env' in
           let v, assign = create_assign (E_mem (elt, set)) in
-          (assign, push (v, create_typ T_bool) env')
+          (assign, push v env')
       | I_get ->
-          let (key, _), env' = pop env in
-          let (map, t), env' = pop env' in
-          let t =
-            match t.d with
-            | T_map (_, t) | T_big_map (_, t) -> t
-            | _ -> assert false
-          in
+          let key, env' = pop env in
+          let map, env' = pop env' in
           let v, assign = create_assign (E_get (key, map)) in
-          (assign, push (v, create_typ (T_option t)) env')
+          (assign, push v env')
       | I_update ->
-          let (key, _), env' = pop env in
-          let (value, _), env' = pop env' in
-          let (map, t), env' = pop env' in
+          let key, env' = pop env in
+          let value, env' = pop env' in
+          let map, env' = pop env' in
           let v, assign = create_assign (E_update (key, value, map)) in
-          (assign, push (v, t) env')
+          (assign, push v env')
       | I_if (i_t, i_f) ->
-          let (c, _), env' = pop env in
+          let c, env' = pop env in
           let s_t, env_t = inst_to_stmt counter env' i_t in
           let s_f, env_f = inst_to_stmt counter env' i_f in
           let env', phis = join counter env_t env_f in
@@ -360,25 +351,24 @@ let rec inst_to_stmt contract_t counter env =
           in
           (s, env')
       | I_loop i ->
-          let (c, _), env' = pop env in
-          let loop_var = next_var () in
+          let c, env' = pop env in
+          let loop_var = { var_name = next_var (); var_type = c.var_type } in
           let body, env' = inst_to_stmt counter env' i in
-          let (loop_result, _), env' = pop env' in
+          let loop_result, env' = pop env' in
           let s = create_stmt (S_loop (loop_var, (c, loop_result), body)) in
           (s, env')
       | I_loop_left i ->
-          let (c, t), env' = pop env in
-          let t_l, t_r = (unlift_left_t t, unlift_right_t t) in
-          let loop_var = next_var () in
-          let e = E_unlift_or loop_var in
+          let c, env' = pop env in
+          let loop_var = { var_name = next_var (); var_type = c.var_type } in
+          let e = E_unlift_or_left loop_var in
           let v, assign_unlift = create_assign e in
           let body, env' =
-            let body_env = push (v, t_l) env' in
+            let body_env = push v env' in
             inst_to_stmt counter body_env i
           in
-          let (loop_result, _), env' = pop env' in
+          let loop_result, env' = pop env' in
           let body = create_stmt (S_seq (assign_unlift, body)) in
-          let post_loop_unlift = E_unlift_or loop_var in
+          let post_loop_unlift = E_unlift_or_right loop_var in
           let v_post_loop, post_loop_assign_unlift =
             create_assign post_loop_unlift
           in
@@ -388,23 +378,26 @@ let rec inst_to_stmt contract_t counter env =
                  ( create_stmt (S_loop_left (loop_var, (c, loop_result), body)),
                    post_loop_assign_unlift ))
           in
-          let env' = push (v_post_loop, t_r) env' in
+          let env' = push v_post_loop env' in
           (s, env')
       | I_lambda (t_1, t_2, i) ->
           let b, lambda_env =
-            inst_to_stmt counter
-              (push ("param_storage", create_typ (T_pair (t_1, t_2))) empty_env)
-              i
+            let v =
+              {
+                (*TODO: check this *) var_name = "param_storage";
+                var_type = t_1;
+              }
+            in
+            inst_to_stmt counter (push v empty_env) i
           in
-          let (r, _), _ = pop lambda_env in
+          let r, _ = pop lambda_env in
           let v, assign = create_assign (E_lambda (t_1, t_2, (b, r))) in
-          (assign, push (v, create_typ (T_lambda (t_1, t_2))) env)
+          (assign, push v env)
       | I_exec ->
-          let (param, _), env' = pop env in
-          let (lambda, t), env' = pop env' in
-          let t = lambda_t t in
+          let param, env' = pop env in
+          let lambda, env' = pop env' in
           let v, assign = create_assign (E_exec (lambda, param)) in
-          (assign, push (v, t) env')
+          (assign, push v env')
       | I_dip i ->
           let x, env' = pop env in
           let s, env' = inst_to_stmt counter env' i in
@@ -415,198 +408,150 @@ let rec inst_to_stmt contract_t counter env =
           let env' = List.fold_left (fun acc x -> push x acc) env' xl in
           (s, env')
       | I_failwith ->
-          let (x, _), _ = pop env in
+          let x, _ = pop env in
           (create_stmt (S_failwith x), Failed)
       | I_cast _ -> (create_stmt S_skip, env)
       | I_rename -> (create_stmt S_skip, env)
       | I_concat ->
-          let (s, t), env' = pop env in
-          let (v, assign), env' =
-            match t.d with
-            | T_list { d = T_string; _ } ->
-                (create_assign (E_concat_list s), env')
+          let v, env' = pop env in
+          let (v', assign), env' =
+            match v.var_type with
+            | T_list T_string -> (create_assign (E_concat_list v), env')
             | T_string ->
-                let (s_2, _), env' = pop env' in
-                (create_assign (E_concat (s, s_2)), env')
+                let s_2, env' = pop env' in
+                (create_assign (E_concat (v, s_2)), env')
             | _ -> assert false
           in
-          (assign, push (v, create_typ T_string) env')
+          (assign, push v' env')
       | I_slice ->
-          let (offset, _), env' = pop env in
-          let (length, _), env' = pop env' in
-          let (x, _), env' = pop env' in
+          let offset, env' = pop env in
+          let length, env' = pop env' in
+          let x, env' = pop env' in
           let v, assign = create_assign (E_slice (offset, length, x)) in
-          (assign, push (v, create_typ (T_option (create_typ T_bytes))) env')
+          (assign, push v env')
       | I_pack ->
-          let (x, _), env' = pop env in
+          let x, env' = pop env in
           let v, assign = create_assign (E_pack x) in
-          (assign, push (v, create_typ T_bytes) env')
+          (assign, push v env')
       | I_unpack t ->
-          let (x, _), env' = pop env in
-          let v, assign = create_assign (E_unpack (t, x)) in
-          (assign, push (v, create_typ (T_option t)) env')
+          let v, env' = pop env in
+          let v', assign = create_assign (E_unpack (t, v)) in
+          (assign, push v' env')
       | I_add ->
-          let (x_1, t_1), env' = pop env in
-          let (x_2, t_2), env' = pop env' in
-          let t =
-            match (t_1.d, t_2.d) with
-            | T_timestamp, T_int | T_int, T_timestamp -> T_timestamp
-            | T_mutez, T_mutez -> T_mutez
-            | T_int, _ | _, T_int -> T_int
-            | T_nat, T_nat -> T_nat
-            | _ -> assert false
-          in
-          let v, assign = create_assign (E_add (x_1, x_2)) in
-          (assign, push (v, create_typ t) env')
+          let v_1, env' = pop env in
+          let v_2, env' = pop env' in
+          let v, assign = create_assign (E_add (v_1, v_2)) in
+          (assign, push v env')
       | I_sub ->
-          let (x_1, t_1), env' = pop env in
-          let (x_2, t_2), env' = pop env' in
-          let t =
-            match (t_1.d, t_2.d) with
-            | T_timestamp, T_int -> T_timestamp
-            | T_timestamp, T_timestamp -> T_int
-            | T_mutez, T_mutez -> T_mutez
-            | (T_int | T_nat), (T_int | T_nat) -> T_int
-            | _ -> assert false
-          in
-          let v, assign = create_assign (E_sub (x_1, x_2)) in
-          (assign, push (v, create_typ t) env')
+          let v_1, env' = pop env in
+          let v_2, env' = pop env' in
+          let v, assign = create_assign (E_sub (v_1, v_2)) in
+          (assign, push v env')
       | I_mul ->
-          let (x_1, t_1), env' = pop env in
-          let (x_2, t_2), env' = pop env' in
-          let t =
-            match (t_1.d, t_2.d) with
-            | T_mutez, T_nat -> T_mutez
-            | T_nat, T_mutez -> T_mutez
-            | T_int, _ | _, T_int -> T_int
-            | T_nat, T_nat -> T_nat
-            | _ -> assert false
-          in
-          let v, assign = create_assign (E_mul (x_1, x_2)) in
-          (assign, push (v, create_typ t) env')
+          let t_1, env' = pop env in
+          let t_2, env' = pop env' in
+          let v, assign = create_assign (E_mul (t_1, t_2)) in
+          (assign, push v env')
       | I_ediv ->
-          let (x_1, t_1), env' = pop env in
-          let (x_2, t_2), env' = pop env' in
-          let t_1, t_2 =
-            match (t_1.d, t_2.d) with
-            | T_mutez, T_nat -> (T_mutez, T_mutez)
-            | T_mutez, T_mutez -> (T_nat, T_mutez)
-            | T_int, _ | _, T_int -> (T_int, T_nat)
-            | T_nat, T_nat -> (T_nat, T_nat)
-            | _ -> assert false
-          in
-          let v, assign = create_assign (E_div (x_1, x_2)) in
-          ( assign,
-            push
-              ( v,
-                create_typ
-                  (T_option
-                     (create_typ (T_pair (create_typ t_1, create_typ t_2)))) )
-              env' )
+          let v_1, env' = pop env in
+          let v_2, env' = pop env' in
+          let v, assign = create_assign (E_div (v_1, v_2)) in
+          (assign, push v env')
       | I_abs ->
-          let (x, _), env' = pop env in
+          let x, env' = pop env in
           let v, assign = create_assign (E_abs x) in
-          (assign, push (v, create_typ T_nat) env')
+          (assign, push v env')
       | I_neg ->
-          let (x, _), env' = pop env in
+          let x, env' = pop env in
           let v, assign = create_assign (E_neg x) in
-          (assign, push (v, create_typ T_int) env')
+          (assign, push v env')
       | I_lsl ->
-          let (x_1, _), env' = pop env in
-          let (x_2, _), env' = pop env' in
+          let x_1, env' = pop env in
+          let x_2, env' = pop env' in
           let v, assign = create_assign (E_shiftL (x_1, x_2)) in
-          (assign, push (v, create_typ T_nat) env')
+          (assign, push v env')
       | I_lsr ->
-          let (x_1, _), env' = pop env in
-          let (x_2, _), env' = pop env' in
+          let x_1, env' = pop env in
+          let x_2, env' = pop env' in
           let v, assign = create_assign (E_shiftR (x_1, x_2)) in
-          (assign, push (v, create_typ T_nat) env')
+          (assign, push v env')
       | I_or ->
-          let (x_1, _), env' = pop env in
-          let (x_2, _), env' = pop env' in
+          let x_1, env' = pop env in
+          let x_2, env' = pop env' in
           let v, assign = create_assign (E_or (x_1, x_2)) in
-          (assign, push (v, create_typ T_nat) env')
+          (assign, push v env')
       | I_and ->
-          let (x_1, _), env' = pop env in
-          let (x_2, _), env' = pop env' in
+          let x_1, env' = pop env in
+          let x_2, env' = pop env' in
           let v, assign = create_assign (E_and (x_1, x_2)) in
-          (assign, push (v, create_typ T_nat) env')
+          (assign, push v env')
       | I_xor ->
-          let (x_1, _), env' = pop env in
-          let (x_2, _), env' = pop env' in
+          let x_1, env' = pop env in
+          let x_2, env' = pop env' in
           let v, assign = create_assign (E_xor (x_1, x_2)) in
-          (assign, push (v, create_typ T_nat) env')
+          (assign, push v env')
       | I_not ->
-          let (x, _), env' = pop env in
+          let x, env' = pop env in
           let v, assign = create_assign (E_not x) in
-          (assign, push (v, create_typ T_int) env')
+          (assign, push v env')
       | I_compare ->
-          let (x_1, _), env' = pop env in
-          let (x_2, _), env' = pop env' in
+          let x_1, env' = pop env in
+          let x_2, env' = pop env' in
           let v, assign = create_assign (E_compare (x_1, x_2)) in
-          (assign, push (v, create_typ T_int) env')
+          (assign, push v env')
       | I_eq ->
-          let (x, _), env' = pop env in
+          let x, env' = pop env in
           let v, assign = create_assign (E_eq x) in
-          (assign, push (v, create_typ T_bool) env')
+          (assign, push v env')
       | I_neq ->
-          let (x, _), env' = pop env in
+          let x, env' = pop env in
           let v, assign = create_assign (E_neq x) in
-          (assign, push (v, create_typ T_bool) env')
+          (assign, push v env')
       | I_lt ->
-          let (x, _), env' = pop env in
+          let x, env' = pop env in
           let v, assign = create_assign (E_lt x) in
-          (assign, push (v, create_typ T_bool) env')
+          (assign, push v env')
       | I_gt ->
-          let (x, _), env' = pop env in
+          let x, env' = pop env in
           let v, assign = create_assign (E_gt x) in
-          (assign, push (v, create_typ T_bool) env')
+          (assign, push v env')
       | I_le ->
-          let (x, _), env' = pop env in
+          let x, env' = pop env in
           let v, assign = create_assign (E_leq x) in
-          (assign, push (v, create_typ T_bool) env')
+          (assign, push v env')
       | I_ge ->
-          let (x, _), env' = pop env in
+          let x, env' = pop env in
           let v, assign = create_assign (E_geq x) in
-          (assign, push (v, create_typ T_bool) env')
+          (assign, push v env')
       | I_self ->
           let v, assign = create_assign E_self in
-          (assign, push (v, contract_t) env)
+          (assign, push v env)
       | I_contract t ->
-          let (x, _), env' = pop env in
-          let v, assign = create_assign (E_contract_of_address x) in
-          (assign, push (v, create_typ (T_option t)) env')
+          let x, env' = pop env in
+          let v, assign = create_assign (E_contract_of_address (t, x)) in
+          (assign, push v env')
       | I_transfer_tokens ->
-          let (x, _), env' = pop env in
-          let (amount, _), env' = pop env' in
-          let (contract, _), env' = pop env' in
+          let x, env' = pop env in
+          let amount, env' = pop env' in
+          let contract, env' = pop env' in
           let operation = O_transfer_tokens (x, amount, contract) in
           let v, assign = create_assign (E_operation operation) in
-          (assign, push (v, create_typ T_operation) env')
+          (assign, push v env')
       | I_set_delegate ->
-          let (x, _), env' = pop env in
+          let x, env' = pop env in
           let o = O_set_delegate x in
           let v, assign = create_assign (E_operation o) in
-          (assign, push (v, create_typ T_operation) env')
-      | I_create_account ->
-          let (manager, _), env' = pop env in
-          let (delegate, _), env' = pop env' in
-          let (delegatable, _), env' = pop env' in
-          let (amount, _), env' = pop env' in
-          let o = O_create_account (manager, delegate, delegatable, amount) in
-          let v_o, assign_o = create_assign (E_operation o) in
-          let v_a, assign_a = create_assign (E_create_account_address o) in
-          ( create_stmt (S_seq (assign_o, assign_a)),
-            push
-              (v_o, create_typ T_operation)
-              (push (v_a, create_typ T_address) env') )
+          (assign, push v env')
       | I_create_contract c ->
-          let (delegate, _), env' = pop env in
-          let (amount, _), env' = pop env' in
-          let (storage, _), env' = pop env' in
+          let delegate, env' = pop env in
+          let amount, env' = pop env' in
+          let storage, env' = pop env' in
           let o = O_create_contract (c, delegate, amount, storage) in
           let v_o, assign_o = create_assign (E_operation o) in
-          let v_a, assign_a = create_assign (E_create_account_address o) in
+          let v_a, assign_a =
+            create_assign
+              (E_create_contract_address (c, delegate, amount, storage))
+          in
           let env' =
             push
               (v_o, create_typ T_operation)
@@ -650,9 +595,6 @@ let rec inst_to_stmt contract_t counter env =
           let (x, _), env' = pop env in
           let v, assign = create_assign (E_hash_key x) in
           (assign, push (v, create_typ T_key_hash) env')
-      | I_steps_to_quota ->
-          let v, assign = create_assign E_steps_to_quota in
-          (assign, push (v, create_typ T_nat) env)
       | I_source ->
           let v, assign = create_assign E_source in
           (assign, push (v, create_typ T_address) env)
@@ -682,12 +624,7 @@ let rec inst_to_stmt contract_t counter env =
           let t_1, t_2 = (car_t t, cdr_t t) in
           ( create_stmt (S_seq (assign_1, assign_2)),
             push (v_1, t_1) (push (v_2, t_2) env') )
-    with exn -> (
-      match i.pos with
-      | Michelson.Location.Pos (s, e) ->
-          Printf.fprintf stderr "line: %d col: %d-%d\n" s.lin s.col e.col;
-          raise exn
-      | _ -> raise exn)
+    with exn -> raise exn
   in
   aux
 
@@ -695,7 +632,7 @@ let convert_program counter p =
   let open Michelson.Adt in
   let env =
     Env.push
-      ("parameter_storage", Adt.create_typ (T_pair (p.param, p.storage)))
+      { var_name = "parameter_storage"; var_type = T_pair (p.param, p.storage) }
       Env.empty_env
   in
   fst (inst_to_stmt p.param counter env p.code) |> Adt.simpl

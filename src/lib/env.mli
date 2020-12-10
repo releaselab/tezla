@@ -1,4 +1,4 @@
-type elem = string * Adt.typ
+type elem = Adt.var
 
 type env = Failed | Stack of elem Functional_stack.t
 
