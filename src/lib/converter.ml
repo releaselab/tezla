@@ -120,8 +120,7 @@ let lambda_t t =
       in
       assert false
 
-let rec inst_to_stmt contract_t counter env =
-  let inst_to_stmt = inst_to_stmt contract_t in
+let rec inst_to_stmt counter env =
   let open Michelson.Adt in
   let open Adt in
   let loop_n f =
@@ -550,89 +549,84 @@ let rec inst_to_stmt contract_t counter env =
           let v_o, assign_o = create_assign (E_operation o) in
           let v_a, assign_a =
             create_assign
-              (E_create_contract_address (c, delegate, amount, storage))
+              (E_create_contract_address
+                 (convert_program counter c, delegate, amount, storage))
           in
-          let env' =
-            push
-              (v_o, create_typ T_operation)
-              (push (v_a, create_typ T_address) env')
-          in
+          let env' = push v_o (push v_a env') in
           (create_stmt (S_seq (assign_o, assign_a)), env')
       | I_implicit_account ->
-          let (x, _), env' = pop env in
-          let v, assign = create_assign (E_implicit_account x) in
-          (assign, push (v, create_typ (T_contract (create_typ T_unit))) env')
+          let v, env' = pop env in
+          let v', assign = create_assign (E_implicit_account v) in
+          (assign, push v' env')
       | I_now ->
           let v, assign = create_assign E_now in
-          (assign, push (v, create_typ T_timestamp) env)
+          (assign, push v env)
       | I_amount ->
           let v, assign = create_assign E_amount in
-          (assign, push (v, create_typ T_mutez) env)
+          (assign, push v env)
       | I_balance ->
           let v, assign = create_assign E_balance in
-          (assign, push (v, create_typ T_mutez) env)
+          (assign, push v env)
       | I_check_signature ->
-          let (key, _), env' = pop env in
-          let (signature, _), env' = pop env' in
-          let (bytes, _), env' = pop env' in
+          let key, env' = pop env in
+          let signature, env' = pop env' in
+          let bytes, env' = pop env' in
           let v, assign =
             create_assign (E_check_signature (key, signature, bytes))
           in
-          (assign, push (v, create_typ T_bool) env')
+          (assign, push v env')
       | I_blake2b ->
-          let (x, _), env' = pop env in
+          let x, env' = pop env in
           let v, assign = create_assign (E_blake2b x) in
-          (assign, push (v, create_typ T_bytes) env')
+          (assign, push v env')
       | I_sha256 ->
-          let (x, _), env' = pop env in
-          let v, assign = create_assign (E_sha256 x) in
-          (assign, push (v, create_typ T_bytes) env')
+          let v, env' = pop env in
+          let v', assign = create_assign (E_sha256 v) in
+          (assign, push v' env')
       | I_sha512 ->
-          let (x, _), env' = pop env in
-          let v, assign = create_assign (E_sha512 x) in
-          (assign, push (v, create_typ T_bytes) env')
+          let v, env' = pop env in
+          let v', assign = create_assign (E_sha512 v) in
+          (assign, push v' env')
       | I_hash_key ->
-          let (x, _), env' = pop env in
-          let v, assign = create_assign (E_hash_key x) in
-          (assign, push (v, create_typ T_key_hash) env')
+          let v, env' = pop env in
+          let v', assign = create_assign (E_hash_key v) in
+          (assign, push v' env')
       | I_source ->
           let v, assign = create_assign E_source in
-          (assign, push (v, create_typ T_address) env)
+          (assign, push v env)
       | I_sender ->
           let v, assign = create_assign E_sender in
-          (assign, push (v, create_typ T_address) env)
+          (assign, push v env)
       | I_address ->
-          let (x, _), env' = pop env in
+          let x, env' = pop env in
           let v, assign = create_assign (E_address_of_contract x) in
-          (assign, push (v, create_typ T_address) env')
+          (assign, push v env')
       | I_isnat ->
-          let (x, _), env' = pop env in
+          let x, env' = pop env in
           let v, assign = create_assign (E_isnat x) in
-          (assign, push (v, create_typ (T_option (create_typ T_nat))) env')
+          (assign, push v env')
       | I_int ->
-          let (x, _), env' = pop env in
+          let x, env' = pop env in
           let v, assign = create_assign (E_int_of_nat x) in
-          (assign, push (v, create_typ T_int) env')
+          (assign, push v env')
       | I_chain_id ->
           let v, assign = create_assign E_chain_id in
-          (assign, push (v, create_typ T_chain_id) env)
+          (assign, push v env)
       | I_noop -> (create_stmt S_skip, env)
       | I_unpair ->
-          let (x, t), env' = pop env in
+          let x, env' = pop env in
           let v_1, assign_1 = create_assign (E_car x) in
           let v_2, assign_2 = create_assign (E_cdr x) in
-          let t_1, t_2 = (car_t t, cdr_t t) in
-          ( create_stmt (S_seq (assign_1, assign_2)),
-            push (v_1, t_1) (push (v_2, t_2) env') )
+          (create_stmt (S_seq (assign_1, assign_2)), push v_1 (push v_2 env'))
     with exn -> raise exn
   in
   aux
 
-let convert_program counter p =
+and convert_program counter p =
   let open Michelson.Adt in
   let env =
     Env.push
       { var_name = "parameter_storage"; var_type = T_pair (p.param, p.storage) }
       Env.empty_env
   in
-  fst (inst_to_stmt p.param counter env p.code) |> Adt.simpl
+  (p.param, p.storage, fst (inst_to_stmt counter env p.code) |> Adt.simpl)

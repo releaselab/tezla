@@ -106,7 +106,7 @@ and stmt = { id : int; stm : stmt_t }
 
 and func = stmt * var
 
-and program = typ * typ * func
+and program = typ * typ * stmt
 
 val create_stmt : stmt_t -> stmt
 
