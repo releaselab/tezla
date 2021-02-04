@@ -22,6 +22,6 @@
  (synopsis "An intermediate representation of the Michelson language")
  (depends
   (dune :build)
-  (zarith :build)
-  (batteries :build)
-  (michelson :build)))
+  zarith
+  batteries
+  michelson))

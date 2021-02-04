@@ -98,6 +98,7 @@ let string_of_expr = function
       sprintf "EMPTY_MAP %s %s" (string_of_typ t_k) (string_of_typ t_v)
   | E_empty_big_map (t_k, t_v) ->
       sprintf "EMPTY_BIG_MAP %s %s" (string_of_typ t_k) (string_of_typ t_v)
+  | E_apply (v_1, v_2) -> sprintf "APPLY %s %s" v_1.var_name v_2.var_name
   | E_append (v_1, v_2) -> sprintf "append(%s, %s)" v_1.var_name v_2.var_name
   | E_phi (v_1, v_2) -> sprintf "phi(%s, %s)" v_1.var_name v_2.var_name
   | E_special_nil_list _ -> sprintf "[]"
@@ -109,8 +110,8 @@ let string_of_list f l =
       | [] -> ""
       | h :: tl ->
           aux
-            (if String.length acc > 0 then sprintf "%s; %s" acc (f h)
-            else sprintf "%s" (f h))
+            ( if String.length acc > 0 then sprintf "%s; %s" acc (f h)
+            else sprintf "%s" (f h) )
             tl
     in
     aux "" l

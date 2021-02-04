@@ -1,11 +1,12 @@
-type typ = Michelson.Adt.typ
+type typ = (unit, Michelson.Adt.annot list) Michelson.Adt.typ
 
-type data = Michelson.Adt.data
+type data = (unit, Michelson.Adt.annot list) Michelson.Adt.data
 
 type var = { var_name : string; var_type : typ }
 
 type operation =
-  | O_create_contract of Michelson.Adt.program * var * var * var
+  | O_create_contract of
+      (unit, Michelson.Adt.annot list) Michelson.Adt.program * var * var * var
   | O_transfer_tokens of var * var * var
   | O_set_delegate of var
   | O_create_account of var * var * var * var
@@ -80,6 +81,7 @@ and expr =
   | E_empty_set of typ
   | E_empty_map of typ * typ
   | E_empty_big_map of typ * typ
+  | E_apply of var * var
   | E_append of var * var
   | E_special_nil_list of typ
   | E_phi of var * var
@@ -111,3 +113,7 @@ and program = typ * typ * stmt
 val create_stmt : stmt_t -> stmt
 
 val simpl : stmt -> stmt
+
+val typ_t_of_typ : typ -> (unit, Michelson.Adt.annot list) Michelson.Adt.typ_t
+
+val typ_of_typ_t : (unit, Michelson.Adt.annot list) Michelson.Adt.typ_t -> typ

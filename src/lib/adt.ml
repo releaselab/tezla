@@ -1,11 +1,12 @@
-type typ = Michelson.Adt.typ
+type typ = (unit, Michelson.Adt.annot list) Michelson.Adt.typ
 
-type data = Michelson.Adt.data
+type data = (unit, Michelson.Adt.annot list) Michelson.Adt.data
 
 type var = { var_name : string; var_type : typ }
 
 type operation =
-  | O_create_contract of Michelson.Adt.program * var * var * var
+  | O_create_contract of
+      (unit, Michelson.Adt.annot list) Michelson.Adt.program * var * var * var
   | O_transfer_tokens of var * var * var
   | O_set_delegate of var
   | O_create_account of var * var * var * var
@@ -80,6 +81,7 @@ and expr =
   | E_empty_set of typ
   | E_empty_map of typ * typ
   | E_empty_big_map of typ * typ
+  | E_apply of var * var
   | E_append of var * var
   | E_special_nil_list of typ
   | E_phi of var * var
@@ -138,3 +140,7 @@ let rec simpl s =
   | S_map ((x, (x_1, x_2)), (y, (y_1, y_2)), s) ->
       { s with stm = S_map ((x, (x_1, x_2)), (y, (y_1, y_2)), simpl s) }
   | S_skip | S_swap | S_dig | S_dug | S_assign _ | S_drop _ | S_failwith _ -> s
+
+let typ_t_of_typ (_, t, _) = t
+
+let typ_of_typ_t t = ((), t, [])
