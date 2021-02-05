@@ -145,6 +145,7 @@ let rec assert_type (_, d) (_, t, _) =
         | _ -> false
       in
       List.for_all (fun (_, d') -> assert_type_map d' k v) l
+  | D_instruction _, T_lambda _ -> true
   | _ -> false
 
 let rec typ_strip_location (_, t, a) =
