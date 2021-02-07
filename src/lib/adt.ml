@@ -1,15 +1,54 @@
-type typ = (unit, Michelson.Adt.annot list) Michelson.Adt.typ
-
-type data = (unit, Michelson.Adt.annot list) Michelson.Adt.data
+type typ =
+  | T_key
+  | T_unit
+  | T_signature
+  | T_option of typ
+  | T_list of typ
+  | T_set of typ
+  | T_operation
+  | T_contract of typ
+  | T_pair of typ * typ
+  | T_or of typ * typ
+  | T_lambda of typ * typ
+  | T_map of typ * typ
+  | T_big_map of typ * typ
+  | T_chain_id
+  | T_int
+  | T_nat
+  | T_string
+  | T_bytes
+  | T_mutez
+  | T_bool
+  | T_key_hash
+  | T_timestamp
+  | T_address
 
 type var = { var_name : string; var_type : typ }
 
 type operation =
   | O_create_contract of
-      (unit, Michelson.Adt.annot list) Michelson.Adt.program * var * var * var
+      (Michelson.Location.t, Michelson.Adt.annot list) Michelson.Adt.program
+      * var
+      * var
+      * var
   | O_transfer_tokens of var * var * var
   | O_set_delegate of var
   | O_create_account of var * var * var * var
+
+type data =
+  | D_int of Z.t
+  | D_string of string
+  | D_bytes of Bytes.t
+  | D_unit
+  | D_bool of bool
+  | D_pair of data * data
+  | D_left of data
+  | D_right of data
+  | D_some of data
+  | D_none
+  | D_elt of data * data
+  | D_list of data list
+  | D_instruction of stmt
 
 and expr =
   | E_push of data * typ
@@ -140,7 +179,3 @@ let rec simpl s =
   | S_map ((x, (x_1, x_2)), (y, (y_1, y_2)), s) ->
       { s with stm = S_map ((x, (x_1, x_2)), (y, (y_1, y_2)), simpl s) }
   | S_skip | S_swap | S_dig | S_dug | S_assign _ | S_drop _ | S_failwith _ -> s
-
-let typ_t_of_typ (_, t, _) = t
-
-let typ_of_typ_t t = ((), t, [])

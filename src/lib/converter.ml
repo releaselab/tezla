@@ -30,8 +30,8 @@ let join counter env_t env_f =
       (Stack env_after, phis)
 
 let unlift_option_t t =
-  let open Michelson.Adt in
-  match Adt.typ_t_of_typ t with
+  let open Adt in
+  match t with
   | T_option t -> t
   | _ ->
       let () =
@@ -41,8 +41,8 @@ let unlift_option_t t =
       assert false
 
 let car_t t =
-  let open Michelson.Adt in
-  match Adt.typ_t_of_typ t with
+  let open Adt in
+  match t with
   | T_pair (t, _) -> t
   | _ ->
       let () =
@@ -52,8 +52,8 @@ let car_t t =
       assert false
 
 let cdr_t t =
-  let open Michelson.Adt in
-  match Adt.typ_t_of_typ t with
+  let open Adt in
+  match t with
   | T_pair (_, t) -> t
   | _ ->
       let () =
@@ -63,8 +63,8 @@ let cdr_t t =
       assert false
 
 let unlift_left_t t =
-  let open Michelson.Adt in
-  match Adt.typ_t_of_typ t with
+  let open Adt in
+  match t with
   | T_or (t, _) -> t
   | _ ->
       let () =
@@ -74,8 +74,8 @@ let unlift_left_t t =
       assert false
 
 let unlift_right_t t =
-  let open Michelson.Adt in
-  match Adt.typ_t_of_typ t with
+  let open Adt in
+  match t with
   | T_or (_, t) -> t
   | _ ->
       let () =
@@ -85,8 +85,8 @@ let unlift_right_t t =
       assert false
 
 let list_elem_t t =
-  let open Michelson.Adt in
-  match Adt.typ_t_of_typ t with
+  let open Adt in
+  match t with
   | T_list t -> t
   | _ ->
       let () =
@@ -96,11 +96,11 @@ let list_elem_t t =
       assert false
 
 let map_iter_elem_t t =
-  let open Michelson.Adt in
-  match Adt.typ_t_of_typ t with
+  let open Adt in
+  match t with
   | T_list t -> t
   | T_set t -> t
-  | T_map (k, v) | T_big_map (k, v) -> Adt.typ_of_typ_t (T_pair (k, v))
+  | T_map (k, v) | T_big_map (k, v) -> T_pair (k, v)
   | _ ->
       let () =
         Format.fprintf Format.err_formatter
@@ -110,8 +110,8 @@ let map_iter_elem_t t =
       assert false
 
 let lambda_t t =
-  let open Michelson.Adt in
-  match Adt.typ_t_of_typ t with
+  let open Adt in
+  match t with
   | T_lambda (_, t) -> t
   | _ ->
       let () =
@@ -302,7 +302,62 @@ and inst_strip_location (_, i, a) =
   in
   ((), i, a)
 
-let rec inst_to_stmt counter env (_, i, _) =
+let rec convert_typ (_, t, _) =
+  let open Adt in
+  match t with
+  | Michelson.Adt.T_address -> T_address
+  | Michelson.Adt.T_key -> T_key
+  | Michelson.Adt.T_unit -> T_unit
+  | Michelson.Adt.T_signature -> T_signature
+  | Michelson.Adt.T_operation -> T_operation
+  | Michelson.Adt.T_chain_id -> T_chain_id
+  | Michelson.Adt.T_int -> T_int
+  | Michelson.Adt.T_nat -> T_nat
+  | Michelson.Adt.T_string -> T_string
+  | Michelson.Adt.T_bytes -> T_bytes
+  | Michelson.Adt.T_mutez -> T_mutez
+  | Michelson.Adt.T_bool -> T_bool
+  | Michelson.Adt.T_key_hash -> T_key_hash
+  | Michelson.Adt.T_timestamp -> T_timestamp
+  | Michelson.Adt.T_option t -> T_option (convert_typ t)
+  | Michelson.Adt.T_list t -> T_list (convert_typ t)
+  | Michelson.Adt.T_set t -> T_set (convert_typ t)
+  | Michelson.Adt.T_contract t -> T_contract (convert_typ t)
+  | Michelson.Adt.T_pair (t_1, t_2) -> T_pair (convert_typ t_1, convert_typ t_2)
+  | Michelson.Adt.T_or (t_1, t_2) -> T_or (convert_typ t_1, convert_typ t_2)
+  | Michelson.Adt.T_lambda (t_1, t_2) ->
+      T_lambda (convert_typ t_1, convert_typ t_2)
+  | Michelson.Adt.T_map (t_1, t_2) -> T_map (convert_typ t_1, convert_typ t_2)
+  | Michelson.Adt.T_big_map (t_1, t_2) ->
+      T_big_map (convert_typ t_1, convert_typ t_2)
+
+let rec convert_data ?typ (_, d) =
+  let open Adt in
+  match d with
+  | Michelson.Adt.D_int n -> D_int n
+  | Michelson.Adt.D_unit -> D_unit
+  | Michelson.Adt.D_none -> D_none
+  | Michelson.Adt.D_string s -> D_string s
+  | Michelson.Adt.D_bytes b -> D_bytes b
+  | Michelson.Adt.D_bool b -> D_bool b
+  | Michelson.Adt.D_pair (d_1, d_2) ->
+      D_pair (convert_data d_1, convert_data d_2)
+  | Michelson.Adt.D_left d -> D_left (convert_data d)
+  | Michelson.Adt.D_right d -> D_right (convert_data d)
+  | Michelson.Adt.D_some d -> D_some (convert_data d)
+  | Michelson.Adt.D_elt (d_1, d_2) -> D_elt (convert_data d_1, convert_data d_2)
+  | Michelson.Adt.D_list d_l -> D_list (List.map convert_data d_l)
+  | Michelson.Adt.D_instruction i ->
+      let typ = Option.get typ in
+      let env =
+        Env.push { var_name = "parameter"; var_type = typ } Env.empty_env
+      in
+      let i, _ = inst_to_stmt (ref (-1)) env i in
+      D_instruction i
+
+and inst_to_stmt counter env
+    ((_, i, _) :
+      (Michelson.Location.t, Michelson.Adt.annot list) Michelson.Adt.inst) =
   let open Michelson.Adt in
   let open Adt in
   let loop_n f =
@@ -322,7 +377,15 @@ let rec inst_to_stmt counter env (_, i, _) =
     match i with
     | I_push (t, x) ->
         assert (assert_type x t);
-        let e = E_push (x, t) in
+        let d =
+          match t with
+          | _, T_lambda (p, _), _ ->
+              let p = convert_typ p in
+              convert_data ~typ:p x
+          | _ -> convert_data x
+        in
+        let t = convert_typ t in
+        let e = E_push (d, t) in
         let v, assign = create_assign e in
         (assign, push v env)
     | I_seq i_l -> (
@@ -361,6 +424,7 @@ let rec inst_to_stmt counter env (_, i, _) =
         let v', assign = create_assign (E_some v) in
         (assign, push v' env')
     | I_none t ->
+        let t = convert_typ t in
         let v, assign = create_assign (E_none t) in
         (assign, push v env)
     | I_unit ->
@@ -391,10 +455,12 @@ let rec inst_to_stmt counter env (_, i, _) =
         let v', assign = create_assign (E_cdr v) in
         (assign, push v' env')
     | I_left t ->
+        let t = convert_typ t in
         let v, env' = pop env in
         let v', assign = create_assign (E_left (v, t)) in
         (assign, push v' env')
     | I_right t ->
+        let t = convert_typ t in
         let v, env' = pop env in
         let v', assign = create_assign (E_right (v, t)) in
         (assign, push v' env')
@@ -416,6 +482,7 @@ let rec inst_to_stmt counter env (_, i, _) =
         in
         (s, env')
     | I_nil t ->
+        let t = convert_typ t in
         let v, assign = create_assign (E_nil t) in
         (assign, push v env)
     | I_cons ->
@@ -450,12 +517,17 @@ let rec inst_to_stmt counter env (_, i, _) =
         let v', assign = create_assign (E_size v) in
         (assign, push v' env')
     | I_empty_set t ->
+        let t = convert_typ t in
         let v, assign = create_assign (E_empty_set t) in
         (assign, push v env)
     | I_empty_map (t_k, t_v) ->
+        let t_k = convert_typ t_k in
+        let t_v = convert_typ t_v in
         let v, assign = create_assign (E_empty_map (t_k, t_v)) in
         (assign, push v env)
     | I_empty_big_map (t_k, t_v) ->
+        let t_k = convert_typ t_k in
+        let t_v = convert_typ t_v in
         let v, assign = create_assign (E_empty_big_map (t_k, t_v)) in
         (assign, push v env)
     | I_map b ->
@@ -559,6 +631,8 @@ let rec inst_to_stmt counter env (_, i, _) =
         let env' = push v_post_loop env' in
         (s, env')
     | I_lambda (t_1, t_2, i) ->
+        let t_1 = convert_typ t_1 in
+        let t_2 = convert_typ t_2 in
         let b, lambda_env =
           let v =
             { (*TODO: check this *) var_name = "param_storage"; var_type = t_1 }
@@ -590,8 +664,8 @@ let rec inst_to_stmt counter env (_, i, _) =
     | I_concat ->
         let v, env' = pop env in
         let (v', assign), env' =
-          match typ_t_of_typ v.var_type with
-          | T_list (_, T_string, _) -> (create_assign (E_concat_list v), env')
+          match v.var_type with
+          | T_list T_string -> (create_assign (E_concat_list v), env')
           | T_string ->
               let s_2, env' = pop env' in
               (create_assign (E_concat (v, s_2)), env')
@@ -609,6 +683,7 @@ let rec inst_to_stmt counter env (_, i, _) =
         let v, assign = create_assign (E_pack x) in
         (assign, push v env')
     | I_unpack t ->
+        let t = convert_typ t in
         let v, env' = pop env in
         let v', assign = create_assign (E_unpack (t, v)) in
         (assign, push v' env')
@@ -702,6 +777,7 @@ let rec inst_to_stmt counter env (_, i, _) =
         let v, assign = create_assign E_self in
         (assign, push v env)
     | I_contract t ->
+        let t = convert_typ t in
         let x, env' = pop env in
         let v, assign = create_assign (E_contract_of_address (t, x)) in
         (assign, push v env')
@@ -721,17 +797,7 @@ let rec inst_to_stmt counter env (_, i, _) =
         let delegate, env' = pop env in
         let amount, env' = pop env' in
         let storage, env' = pop env' in
-        let o =
-          O_create_contract
-            ( {
-                code = inst_strip_location c.code;
-                param = typ_strip_location c.param;
-                storage = typ_strip_location c.storage;
-              },
-              delegate,
-              amount,
-              storage )
-        in
+        let o = O_create_contract (c, delegate, amount, storage) in
         let v_o, assign_o = create_assign (E_operation o) in
         let v_a, assign_a =
           create_assign
@@ -812,16 +878,12 @@ let rec inst_to_stmt counter env (_, i, _) =
   with exn -> raise exn
 
 and convert_program counter { param; code; storage } =
-  let open Michelson.Adt in
-  let param = typ_strip_location param in
-  let storage = typ_strip_location storage in
-  let code = inst_strip_location code in
+  let param = convert_typ param in
+  let storage = convert_typ storage in
+  (* let code = inst_strip_location code in *)
   let env =
     Env.push
-      {
-        var_name = "parameter_storage";
-        var_type = Adt.typ_of_typ_t (T_pair (param, storage));
-      }
+      { var_name = "parameter_storage"; var_type = T_pair (param, storage) }
       Env.empty_env
   in
   (param, storage, fst (inst_to_stmt counter env code) |> Adt.simpl)

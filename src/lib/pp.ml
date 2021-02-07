@@ -2,9 +2,69 @@ open Batteries
 open Printf
 open Adt
 
-let string_of_typ = Michelson.Pp.string_of_typ
+let string_of_list f l =
+  let open Printf in
+  let values =
+    let rec aux acc = function
+      | [] -> ""
+      | h :: tl ->
+          aux
+            ( if String.length acc > 0 then sprintf "%s; %s" acc (f h)
+            else sprintf "%s" (f h) )
+            tl
+    in
+    aux "" l
+  in
+  "[ " ^ values ^ " ]"
 
-let string_of_data = Michelson.Pp.string_of_data
+let rec string_of_typ = function
+  | T_int -> "int"
+  | T_nat -> "nat"
+  | T_string -> "string"
+  | T_bytes -> "bytes"
+  | T_mutez -> "mutez"
+  | T_bool -> "bool"
+  | T_key_hash -> "key_hash"
+  | T_timestamp -> "timestamp"
+  | T_address -> "address"
+  | T_key -> "key"
+  | T_unit -> "unit"
+  | T_signature -> "signature"
+  | T_option t -> sprintf "(option %s)" (string_of_typ t)
+  | T_list t -> sprintf "(list %s)" (string_of_typ t)
+  | T_set t -> sprintf "(set %s)" (string_of_typ t)
+  | T_operation -> "operation"
+  | T_contract t -> sprintf "(contract %s)" (string_of_typ t)
+  | T_pair (t_1, t_2) ->
+      sprintf "(pair %s %s)" (string_of_typ t_1) (string_of_typ t_2)
+  | T_or (t_1, t_2) ->
+      sprintf "(or %s %s)" (string_of_typ t_1) (string_of_typ t_2)
+  | T_lambda (t_1, t_2) ->
+      sprintf "(lambda %s %s)" (string_of_typ t_1) (string_of_typ t_2)
+  | T_map (t_1, t_2) ->
+      sprintf "(map %s %s)" (string_of_typ t_1) (string_of_typ t_2)
+  | T_big_map (t_1, t_2) ->
+      sprintf "(big_map %s %s)" (string_of_typ t_1) (string_of_typ t_2)
+  | T_chain_id -> "chain_id"
+
+let rec string_of_data =
+  let open Printf in
+  function
+  | D_int d -> Z.to_string d
+  | D_string s -> sprintf "\"%s\"" s
+  | D_bytes b -> sprintf "%s" (Bytes.to_string b)
+  | D_elt (d_1, d_2) ->
+      sprintf "Elt %s %s" (string_of_data d_1) (string_of_data d_2)
+  | D_left d -> sprintf "Left %s" (string_of_data d)
+  | D_right d -> sprintf "Right %s" (string_of_data d)
+  | D_some d -> sprintf "Some %s" (string_of_data d)
+  | D_none -> sprintf "None"
+  | D_unit -> sprintf "Unit"
+  | D_bool b -> sprintf (match b with true -> "True" | false -> "False")
+  | D_pair (d_1, d_2) ->
+      sprintf "(Pair %s %s)" (string_of_data d_1) (string_of_data d_2)
+  | D_list d -> string_of_list string_of_data d
+  | D_instruction _ -> ""
 
 let string_of_var v = v.var_name
 
