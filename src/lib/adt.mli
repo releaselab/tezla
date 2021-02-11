@@ -103,7 +103,11 @@ and expr =
   | E_source
   | E_sender
   | E_address_of_contract of var
-  | E_create_contract_address of program * var * var * var
+  | E_create_contract_address of
+      (Michelson.Location.t, Michelson.Adt.annot list) Michelson.Adt.program
+      * var
+      * var
+      * var
   | E_unlift_option of var
   | E_unlift_or_left of var
   | E_unlift_or_right of var
@@ -113,7 +117,7 @@ and expr =
   | E_isnat of var
   | E_int_of_nat of var
   | E_chain_id
-  | E_lambda of typ * typ * func
+  | E_lambda of typ * typ * stmt
   | E_exec of var * var
   | E_dup of var
   | E_nil of typ
@@ -122,7 +126,8 @@ and expr =
   | E_empty_big_map of typ * typ
   | E_apply of var * var
   | E_append of var * var
-  | E_special_nil_list of typ
+  | E_special_empty_list of typ
+  | E_special_empty_map of typ * typ
   | E_phi of var * var
 
 and stmt_t =
@@ -142,10 +147,9 @@ and stmt_t =
   | S_map of (var * (var * var)) * (var * (var * var)) * stmt
   | S_iter of var * (var * var) * stmt
   | S_failwith of var
+  | S_return of var
 
 and stmt = { id : int; stm : stmt_t }
-
-and func = stmt * var
 
 and program = typ * typ * stmt
 

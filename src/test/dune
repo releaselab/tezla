@@ -1,3 +1,4 @@
 (test
  (name test)
- (libraries michelson tezla alcotest))
+ (libraries michelson tezla alcotest)
+ (modes byte))

@@ -64,3 +64,5 @@ let dup env =
   (x, env')
 
 (* let rename v = function (x, _) :: t -> (x, v) :: t | l -> l *)
+
+let length = function Failed -> raise Stack_failed | Stack s -> List.length s
