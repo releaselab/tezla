@@ -92,7 +92,13 @@ and expr =
   | E_isnat of var
   | E_int_of_nat of var
   | E_chain_id
-  | E_lambda of typ * typ * var * stmt
+  | E_lambda of {
+      lambda_param_t : typ;
+      lambda_return_t : typ;
+      lambda_param : var;
+      lambda_stmt : stmt;
+      lambda_return : var option;
+    }
   | E_exec of var * var
   | E_dup of var
   | E_nil of typ
@@ -122,11 +128,15 @@ and stmt_t =
   | S_map of var * stmt
   | S_iter of var * stmt
   | S_failwith of var
-  | S_return of var
 
 and stmt = { id : int; stm : stmt_t }
 
-and program = typ * typ * stmt
+and program = {
+  param_t : typ;
+  storage_t : typ;
+  code : stmt;
+  return : var option;
+}
 
 module Data : sig
   include Comparable.S with type t = data

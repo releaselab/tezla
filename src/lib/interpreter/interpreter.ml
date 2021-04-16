@@ -13,7 +13,7 @@ type 'a or_failed = Ok of 'a | Failed
 
 type e_t = E : 'a t -> e_t
 
-type env = e_t Var.Map.t or_failed
+type r = Env of e_t Var.Map.t or_failed | Timeout
 
 type ('param, 'storage) context = {
   ctx_param : 'param t;
@@ -74,44 +74,46 @@ let find_t : type a. e_t Var.Map.t -> a typ -> var -> a t =
 
 let find_e_t : e_t Var.Map.t -> var -> e_t = Var.Map.find_exn
 
-let rec expr ctx env =
+let rec expr (s : int) ctx env =
   let module Map = Var.Map in
   let open Stack_data in
   let find = Var.Map.find_exn env in
   function
-  | E_var v | E_dup v -> Ok (find v)
+  | E_var v | E_dup v -> (Ok (find v), s)
   | E_push (d, t) ->
       let (E_T t) = typ_from_adt_typ t in
-      Ok (E (from_adt_data t d))
-  | E_unit -> Ok (E SD_unit)
-  | E_self -> Ok (E (SD_contract (Contract_addr ctx.ctx_self_address)))
-  | E_now -> Ok (E ctx.ctx_now)
-  | E_amount -> Ok (E ctx.ctx_amount)
-  | E_balance -> Ok (E ctx.ctx_balance)
-  | E_source -> Ok (E ctx.ctx_source)
-  | E_sender -> Ok (E ctx.ctx_sender)
-  | E_chain_id -> Ok (E ctx.ctx_chain_id)
+      (Ok (E (from_adt_data t d)), s)
+  | E_unit -> (Ok (E SD_unit), s)
+  | E_self -> (Ok (E (SD_contract (Contract_addr ctx.ctx_self_address))), s)
+  | E_now -> (Ok (E ctx.ctx_now), s)
+  | E_amount -> (Ok (E ctx.ctx_amount), s)
+  | E_balance -> (Ok (E ctx.ctx_balance), s)
+  | E_source -> (Ok (E ctx.ctx_source), s)
+  | E_sender -> (Ok (E ctx.ctx_sender), s)
+  | E_chain_id -> (Ok (E ctx.ctx_chain_id), s)
   | E_car v -> (
       let (E d) = find v in
-      match d with SD_pair (d', _) -> Ok (E d') | _ -> raise Type_error)
+      match d with SD_pair (d', _) -> (Ok (E d'), s) | _ -> raise Type_error)
   | E_cdr v -> (
       let (E d) = find v in
-      match d with SD_pair (_, d') -> Ok (E d') | _ -> raise Type_error)
+      match d with SD_pair (_, d') -> (Ok (E d'), s) | _ -> raise Type_error)
   | E_abs v -> (
       let (E d) = find v in
       match d with
-      | SD_int (Int n) -> Ok (E (SD_nat (Nat Bigint.(abs n))))
+      | SD_int (Int n) -> (Ok (E (SD_nat (Nat Bigint.(abs n)))), s)
       | _ -> raise Type_error)
   | E_neg v -> (
       let (E d) = find v in
       match d with
-      | SD_int (Int n) | SD_nat (Nat n) -> Ok (E (SD_int (Int Bigint.(neg n))))
+      | SD_int (Int n) | SD_nat (Nat n) ->
+          (Ok (E (SD_int (Int Bigint.(neg n)))), s)
       | _ -> raise Type_error)
   | E_not v -> (
       let (E d) = find v in
       match d with
-      | SD_bool (Bool b) -> Ok (E (SD_bool (Bool (not b))))
-      | SD_int (Int n) | SD_nat (Nat n) -> Ok (E (SD_int (Int Bigint.(lnot n))))
+      | SD_bool (Bool b) -> (Ok (E (SD_bool (Bool (not b)))), s)
+      | SD_int (Int n) | SD_nat (Nat n) ->
+          (Ok (E (SD_int (Int Bigint.(lnot n)))), s)
       | _ -> raise Type_error)
   | E_add (v_1, v_2) ->
       let (E d_1) = find v_1 in
@@ -133,7 +135,7 @@ let rec expr ctx env =
             else E (SD_mutez (Mutez Int64.(n_1 + n_2)))
         | _ -> raise Type_error
       in
-      Ok res
+      (Ok res, s)
   | E_sub (v_1, v_2) ->
       let (E d_1) = find v_1 in
       let (E d_2) = find v_2 in
@@ -154,7 +156,7 @@ let rec expr ctx env =
             else E (SD_mutez (Mutez Int64.(n_1 + n_2)))
         | _ -> raise Type_error
       in
-      Ok res
+      (Ok res, s)
   | E_mul (v_1, v_2) ->
       let (E d_1) = find v_1 in
       let (E d_2) = find v_2 in
@@ -182,7 +184,7 @@ let rec expr ctx env =
             else E (SD_mutez (Mutez (Bigint.to_int64_exn res)))
         | _ -> raise Type_error
       in
-      Ok res
+      (Ok res, s)
   | E_div (v_1, v_2) ->
       let (E d_1) = find v_1 in
       let (E d_2) = find v_2 in
@@ -234,28 +236,28 @@ let rec expr ctx env =
                      (O_some (SD_pair (SD_nat (Nat q), SD_mutez (Mutez r))))))
         | _ -> raise Type_error
       in
-      Ok res
+      (Ok res, s)
   | E_shiftL (v_1, v_2) -> (
       let (E d_1) = find v_1 in
       let (E d_2) = find v_2 in
       match (d_1, d_2) with
       | SD_nat (Nat n_1), SD_nat (Nat n_2) ->
-          if Bigint.(n_2 > of_int 256) then Failed
+          if Bigint.(n_2 > of_int 256) then (Failed, s)
           else
             let n_2 = Bigint.to_int_exn n_2 in
             let res = Bigint.(shift_left n_1 n_2) in
-            Ok (E (SD_nat (Nat res)))
+            (Ok (E (SD_nat (Nat res))), s)
       | _ -> raise Type_error)
   | E_shiftR (v_1, v_2) -> (
       let (E d_1) = find v_1 in
       let (E d_2) = find v_2 in
       match (d_1, d_2) with
       | SD_nat (Nat n_1), SD_nat (Nat n_2) ->
-          if Bigint.(n_2 > of_int 256) then Failed
+          if Bigint.(n_2 > of_int 256) then (Failed, s)
           else
             let n_2 = Bigint.to_int_exn n_2 in
             let res = Bigint.(shift_right n_1 n_2) in
-            Ok (E (SD_nat (Nat res)))
+            (Ok (E (SD_nat (Nat res))), s)
       | _ -> raise Type_error)
   | E_and (v_1, v_2) ->
       let (E d_1) = find v_1 in
@@ -269,7 +271,7 @@ let rec expr ctx env =
             E (SD_nat (Nat Bigint.(n_1 land n_2)))
         | _ -> raise Type_error
       in
-      Ok res
+      (Ok res, s)
   | E_or (v_1, v_2) ->
       let (E d_1) = find v_1 in
       let (E d_2) = find v_2 in
@@ -281,7 +283,7 @@ let rec expr ctx env =
             E (SD_nat (Nat Bigint.(n_1 lor n_2)))
         | _ -> raise Type_error
       in
-      Ok res
+      (Ok res, s)
   | E_xor (v_1, v_2) ->
       let (E d_1) = find v_1 in
       let (E d_2) = find v_2 in
@@ -293,64 +295,64 @@ let rec expr ctx env =
             E (SD_nat (Nat Bigint.(n_1 lxor n_2)))
         | _ -> raise Type_error
       in
-      Ok res
+      (Ok res, s)
   | E_eq v -> (
       let (E d) = find v in
       match d with
-      | SD_int (Int n) -> Ok (E (SD_bool (Bool Bigint.(n = zero))))
+      | SD_int (Int n) -> (Ok (E (SD_bool (Bool Bigint.(n = zero)))), s)
       | _ -> raise Type_error)
   | E_neq v -> (
       let (E d) = find v in
       match d with
-      | SD_int (Int n) -> Ok (E (SD_bool (Bool Bigint.(n <> zero))))
+      | SD_int (Int n) -> (Ok (E (SD_bool (Bool Bigint.(n <> zero)))), s)
       | _ -> raise Type_error)
   | E_lt v -> (
       let (E d) = find v in
       match d with
-      | SD_int (Int n) -> Ok (E (SD_bool (Bool Bigint.(n < zero))))
+      | SD_int (Int n) -> (Ok (E (SD_bool (Bool Bigint.(n < zero)))), s)
       | _ -> raise Type_error)
   | E_gt v -> (
       let (E d) = find v in
       match d with
-      | SD_int (Int n) -> Ok (E (SD_bool (Bool Bigint.(n > zero))))
+      | SD_int (Int n) -> (Ok (E (SD_bool (Bool Bigint.(n > zero)))), s)
       | _ -> raise Type_error)
   | E_leq v -> (
       let (E d) = find v in
       match d with
-      | SD_int (Int n) -> Ok (E (SD_bool (Bool Bigint.(n <= zero))))
+      | SD_int (Int n) -> (Ok (E (SD_bool (Bool Bigint.(n <= zero)))), s)
       | _ -> raise Type_error)
   | E_geq v -> (
       let (E d) = find v in
       match d with
-      | SD_int (Int n) -> Ok (E (SD_bool (Bool Bigint.(n >= zero))))
+      | SD_int (Int n) -> (Ok (E (SD_bool (Bool Bigint.(n >= zero)))), s)
       | _ -> raise Type_error)
   | E_compare (v_1, v_2) ->
       let (E d_1) = find v_1 in
       let (E d_2) = find v_2 in
       let res = compare d_1 d_2 in
-      Ok (E (SD_int (Int (bigint_of_comp res))))
+      (Ok (E (SD_int (Int (bigint_of_comp res)))), s)
   | E_cons (v_1, v_2) ->
       let (E d_1) = find v_1 in
       let (E d_2) = find v_2 in
       let (E_T t) = typ_from_adt_typ v_1.var_type in
       let d_1 = cast t d_1 in
       let (SD_list d_2) = cast (List_t t) d_2 in
-      Ok (E (SD_list (L_cons (d_1, d_2))))
-  | E_operation o -> Ok (E (SD_operation (Operation o)))
+      (Ok (E (SD_list (L_cons (d_1, d_2)))), s)
+  | E_operation o -> (Ok (E (SD_operation (Operation o))), s)
   | E_pair (v_1, v_2) ->
       let (E d_1) = find v_1 in
       let (E d_2) = find v_2 in
-      Ok (E (SD_pair (d_1, d_2)))
+      (Ok (E (SD_pair (d_1, d_2))), s)
   | E_left (v, _) ->
       let (E d) = find v in
-      Ok (E (SD_or (Or_left d)))
+      (Ok (E (SD_or (Or_left d))), s)
   | E_right (v, _) ->
       let (E d) = find v in
-      Ok (E (SD_or (Or_right d)))
+      (Ok (E (SD_or (Or_right d))), s)
   | E_some v ->
       let (E d) = find v in
-      Ok (E (SD_option (O_some d)))
-  | E_none _ -> Ok (E (SD_option O_none))
+      (Ok (E (SD_option (O_some d))), s)
+  | E_none _ -> (Ok (E (SD_option O_none)), s)
   | E_mem (v_1, v_2) -> (
       let (E d_1) = find v_1 in
       let (E d_2) = find v_2 in
@@ -374,14 +376,14 @@ let rec expr ctx env =
       in
       match d_2 with
       | SD_set _ ->
-          let (SD_set s) = cast (Set_t t) d_2 in
-          Ok (E (SD_bool (Bool (f_set d_1 s))))
+          let (SD_set set) = cast (Set_t t) d_2 in
+          (Ok (E (SD_bool (Bool (f_set d_1 set)))), s)
       | SD_map m ->
           let m = cast_map_key t m in
-          Ok (E (SD_bool (Bool (f_map d_1 m))))
+          (Ok (E (SD_bool (Bool (f_map d_1 m)))), s)
       | SD_big_map m ->
           let m = cast_big_map_key t m in
-          Ok (E (SD_bool (Bool (f_big_map d_1 m))))
+          (Ok (E (SD_bool (Bool (f_big_map d_1 m)))), s)
       | _ -> raise Type_error)
   | E_get (v_1, v_2) -> (
       let rec f_map : type a b. a t -> (a, b) t_map -> b t_option t =
@@ -404,13 +406,13 @@ let rec expr ctx env =
           let (E_T t_v) = typ_from_adt_typ t_v in
           let d_1 = cast t_k d_1 in
           let (SD_big_map m) = cast (Big_map_t (t_k, t_v)) d_2 in
-          Ok (E (f_big_map d_1 m))
+          (Ok (E (f_big_map d_1 m)), s)
       | T_map (t_k, t_v) ->
           let (E_T t_k) = typ_from_adt_typ t_k in
           let (E_T t_v) = typ_from_adt_typ t_v in
           let d_1 = cast t_k d_1 in
           let (SD_map m) = cast (Map_t (t_k, t_v)) d_2 in
-          Ok (E (f_map d_1 m))
+          (Ok (E (f_map d_1 m)), s)
       | _ -> raise Type_error)
   | E_update (v_1, v_2, v_3) -> (
       let rec f_set : type a. a t -> bool -> a t_set -> a t_set =
@@ -463,22 +465,22 @@ let rec expr ctx env =
           let (E_T t) = typ_from_adt_typ t in
           let x = cast t d_1 in
           let (SD_bool (Bool b)) = cast Bool_t d_2 in
-          let (SD_set s) = cast (Set_t t) d_3 in
-          Ok (E (SD_set (f_set x b s)))
+          let (SD_set set) = cast (Set_t t) d_3 in
+          (Ok (E (SD_set (f_set x b set))), s)
       | T_map (t_k, t_v) ->
           let (E_T t_k) = typ_from_adt_typ t_k in
           let (E_T t_v) = typ_from_adt_typ t_v in
           let x = cast t_k d_1 in
           let (SD_option y) = cast (Option_t t_v) d_2 in
           let (SD_map m) = cast (Map_t (t_k, t_v)) d_3 in
-          Ok (E (SD_map (f_map x y m)))
+          (Ok (E (SD_map (f_map x y m))), s)
       | T_big_map (t_k, t_v) ->
           let (E_T t_k) = typ_from_adt_typ t_k in
           let (E_T t_v) = typ_from_adt_typ t_v in
           let x = cast t_k d_1 in
           let (SD_option y) = cast (Option_t t_v) d_2 in
           let (SD_big_map m) = cast (Big_map_t (t_k, t_v)) d_3 in
-          Ok (E (SD_big_map (f_big_map x y m)))
+          (Ok (E (SD_big_map (f_big_map x y m))), s)
       | _ -> raise Type_error)
   | E_concat (v_1, v_2) -> (
       let (E d_1) = find v_1 in
@@ -487,14 +489,15 @@ let rec expr ctx env =
       | T_string ->
           let (SD_string (String s_1)) = cast String_t d_1 in
           let (SD_string (String s_2)) = cast String_t d_2 in
-          Ok (E (SD_string (String (s_1 ^ s_2))))
+          (Ok (E (SD_string (String (s_1 ^ s_2)))), s)
       | T_bytes ->
           let (SD_bytes (Bytes b_1)) = cast Bytes_t d_1 in
           let (SD_bytes (Bytes b_2)) = cast Bytes_t d_2 in
-          Ok
-            (E
-               (SD_bytes
-                  (Bytes (Stdlib.Bytes.concat Stdlib.Bytes.empty [ b_1; b_2 ]))))
+          ( Ok
+              (E
+                 (SD_bytes
+                    (Bytes (Stdlib.Bytes.concat Stdlib.Bytes.empty [ b_1; b_2 ])))),
+            s )
       | _ -> raise Type_error)
   | E_concat_list v -> (
       let (E d) = find v in
@@ -506,7 +509,7 @@ let rec expr ctx env =
             | L_nil -> acc
             | L_cons (SD_string (String h), t) -> concat (acc ^ h) t
           in
-          Ok (E (SD_string (String (concat "" l))))
+          (Ok (E (SD_string (String (concat "" l)))), s)
       | T_list T_bytes ->
           let (SD_list l) = cast (List_t Bytes_t) d in
           let rec concat : bytes -> t_bytes t_list -> bytes =
@@ -515,7 +518,7 @@ let rec expr ctx env =
             | L_cons (SD_bytes (Bytes h), t) ->
                 concat (Stdlib.Bytes.concat Stdlib.Bytes.empty [ acc; h ]) t
           in
-          Ok (E (SD_bytes (Bytes (concat Stdlib.Bytes.empty l))))
+          (Ok (E (SD_bytes (Bytes (concat Stdlib.Bytes.empty l)))), s)
       | _ -> raise Type_error)
   | E_slice (v_1, v_2, v_3) -> (
       let (E d_1) = find v_1 in
@@ -527,43 +530,47 @@ let rec expr ctx env =
       let n_2 = Bigint.to_int_exn n_2 in
       match v_3.var_type with
       | T_string ->
-          let (SD_string (String s)) = cast String_t d_3 in
-          let s = String.sub s ~pos:n_1 ~len:n_2 in
-          Ok (E (SD_string (String s)))
+          let (SD_string (String str)) = cast String_t d_3 in
+          let str = String.sub str ~pos:n_1 ~len:n_2 in
+          (Ok (E (SD_string (String str))), s)
       | T_bytes ->
           let (SD_bytes (Bytes b)) = cast Bytes_t d_3 in
           let b = Bytes.sub b ~pos:n_1 ~len:n_2 in
-          Ok (E (SD_bytes (Bytes b)))
+          (Ok (E (SD_bytes (Bytes b))), s)
       | _ -> raise Type_error)
   | E_contract_of_address (t, v) ->
       let (E d) = find v in
       let (SD_address d) = cast Address_t d in
       let (E_T _t) = typ_from_adt_typ t in
-      Ok (E (SD_contract (Contract_addr d)))
+      (Ok (E (SD_contract (Contract_addr d))), s)
   | E_implicit_account v ->
       let (E d) = find v in
       let (SD_key_hash d) = cast Key_hash_t d in
-      Ok (E (SD_contract (Contract_key_hash d)))
+      (Ok (E (SD_contract (Contract_key_hash d))), s)
   | E_address_of_contract v ->
       let (E d) = find v in
       let (SD_contract c) = cast (Contract_t Unit_t) d in
-      Ok (E (SD_address (Address_contract c)))
+      (Ok (E (SD_address (Address_contract c))), s)
   | E_unlift_option v -> (
       let (E d) = find v in
-      match d with SD_option (O_some d) -> Ok (E d) | _ -> raise Type_error)
+      match d with
+      | SD_option (O_some d) -> (Ok (E d), s)
+      | _ -> raise Type_error)
   | E_unlift_or_left v -> (
       let (E d) = find v in
-      match d with SD_or (Or_left d) -> Ok (E d) | _ -> raise Type_error)
+      match d with SD_or (Or_left d) -> (Ok (E d), s) | _ -> raise Type_error)
   | E_unlift_or_right v -> (
       let (E d) = find v in
-      match d with SD_or (Or_right d) -> Ok (E d) | _ -> raise Type_error)
+      match d with SD_or (Or_right d) -> (Ok (E d), s) | _ -> raise Type_error)
   | E_hd v -> (
       let (E d) = find v in
-      match d with SD_list (L_cons (d, _)) -> Ok (E d) | _ -> raise Type_error)
+      match d with
+      | SD_list (L_cons (d, _)) -> (Ok (E d), s)
+      | _ -> raise Type_error)
   | E_tl v -> (
       let (E d) = find v in
       match d with
-      | SD_list (L_cons (_, tl)) -> Ok (E (SD_list tl))
+      | SD_list (L_cons (_, tl)) -> (Ok (E (SD_list tl)), s)
       | _ -> raise Type_error)
   | E_size v -> (
       let (E d) = find v in
@@ -583,28 +590,29 @@ let rec expr ctx env =
         | Map_cons (_, tl) -> f_map Bigint.(acc + one) tl
       in
       match d with
-      | SD_string (String s) ->
-          Ok (E (SD_nat (Nat (Bigint.of_int (String.length s)))))
+      | SD_string (String str) ->
+          (Ok (E (SD_nat (Nat (Bigint.of_int (String.length str))))), s)
       | SD_bytes (Bytes b) ->
-          Ok (E (SD_nat (Nat (Bigint.of_int (Bytes.length b)))))
-      | SD_list l -> Ok (E (SD_nat (Nat (f_list Bigint.zero l))))
-      | SD_set s -> Ok (E (SD_nat (Nat (f_set Bigint.zero s))))
-      | SD_map m -> Ok (E (SD_nat (Nat (f_map Bigint.zero m))))
+          (Ok (E (SD_nat (Nat (Bigint.of_int (Bytes.length b))))), s)
+      | SD_list l -> (Ok (E (SD_nat (Nat (f_list Bigint.zero l)))), s)
+      | SD_set set -> (Ok (E (SD_nat (Nat (f_set Bigint.zero set)))), s)
+      | SD_map m -> (Ok (E (SD_nat (Nat (f_map Bigint.zero m)))), s)
       | _ -> raise Type_error)
   | E_isnat v ->
       let (E d) = find v in
       let (SD_int (Int d)) = cast Int_t d in
-      if Bigint.(d < zero) then Ok (E (SD_option O_none))
-      else Ok (E (SD_option (O_some (SD_nat (Nat d)))))
+      if Bigint.(d < zero) then (Ok (E (SD_option O_none)), s)
+      else (Ok (E (SD_option (O_some (SD_nat (Nat d))))), s)
   | E_int_of_nat v ->
       let (E d) = find v in
       let (SD_nat (Nat d)) = cast Nat_t d in
-      Ok (E (SD_int (Int d)))
-  | E_lambda (_, _, _, i) -> Ok (E (SD_lambda (Lambda i)))
-  | E_special_empty_list _ | E_nil _ -> Ok (E (SD_list L_nil))
-  | E_empty_set _ -> Ok (E (SD_set Set_nil))
-  | E_special_empty_map (_, _) | E_empty_map (_, _) -> Ok (E (SD_map Map_nil))
-  | E_empty_big_map (_, _) -> Ok (E (SD_big_map Big_map_nil))
+      (Ok (E (SD_int (Int d))), s)
+  | E_lambda lambda -> (Ok (E (SD_lambda (Lambda lambda.lambda_stmt))), s)
+  | E_special_empty_list _ | E_nil _ -> (Ok (E (SD_list L_nil)), s)
+  | E_empty_set _ -> (Ok (E (SD_set Set_nil)), s)
+  | E_special_empty_map (_, _) | E_empty_map (_, _) ->
+      (Ok (E (SD_map Map_nil)), s)
+  | E_empty_big_map (_, _) -> (Ok (E (SD_big_map Big_map_nil)), s)
   | E_append (v_1, v_2) -> (
       let (E d_1) = find v_1 in
       let (E d_2) = find v_2 in
@@ -616,7 +624,7 @@ let rec expr ctx env =
         match l_1 with L_nil -> l_2 | L_cons (h, tl) -> L_cons (h, f tl l_2)
       in
       match (d_1, d_2) with
-      | SD_list l_1, SD_list l_2 -> Ok (E (SD_list (f l_1 l_2)))
+      | SD_list l_1, SD_list l_2 -> (Ok (E (SD_list (f l_1 l_2))), s)
       | _ -> raise Type_error)
   | E_exec (_, _)
   | E_apply (_, _)
@@ -627,99 +635,111 @@ let rec expr ctx env =
   | E_blake2b _ | E_sha256 _ | E_sha512 _ | E_hash_key _ ->
       raise Not_implemented
 
-and stmt ctx env s =
+and stmt s ctx env stmt =
   let open Adt in
   let module Map = Var.Map in
-  let exception Return of e_t in
-  let rec stmt_aux env s =
+  let rec stmt_aux s env stmt =
     match env with
-    | Failed -> Failed
-    | Ok env' -> (
+    | Timeout -> (Timeout, s)
+    | Env Failed -> (Env Failed, s)
+    | Env (Ok env') -> (
         let find = Map.find_exn env' in
-        match s.stm with
+        match stmt.stm with
         | S_assign (v, e) -> (
-            match expr ctx env' e with
-            | Ok d ->
+            match expr s ctx env' e with
+            | Ok d, s' ->
                 let (E d') = d in
                 Debug.eprintf "%s := %s (%s)" v.var_name (Expr.to_string e)
                   (Stack_data.to_string d');
-                Ok (Map.set env' ~key:v ~data:d)
-            | Failed -> Failed)
-        | S_drop _ | S_swap | S_dig | S_dug | S_skip -> env
-        | S_seq (s_1, s_2) -> stmt_aux (stmt_aux env s_1) s_2
+                (Env (Ok (Map.set env' ~key:v ~data:d)), s')
+            | Failed, s' -> (Env Failed, s'))
+        | S_drop _ | S_swap | S_dig | S_dug | S_skip -> (env, s)
+        | S_seq (s_1, s_2) ->
+            let r, s' = stmt_aux s env s_1 in
+            stmt_aux s' r s_2
         | S_if (c, s_t, s_f) -> (
             match find c with
             | E (SD_bool (Bool b)) ->
-                if b then stmt_aux env s_t else stmt_aux env s_f
+                if b then stmt_aux s env s_t else stmt_aux s env s_f
             | _ ->
                 Debug.amf [%here] "type error";
                 raise Type_error)
         | S_if_none (c, s_t, s_f) -> (
             match find c with
-            | E (SD_option O_none) -> stmt_aux env s_t
-            | E (SD_option (O_some _)) -> stmt_aux env s_f
+            | E (SD_option O_none) -> stmt_aux s env s_t
+            | E (SD_option (O_some _)) -> stmt_aux s env s_f
             | _ ->
                 Debug.amf [%here] "type error";
                 raise Type_error)
         | S_if_left (c, s_t, s_f) -> (
             match find c with
-            | E (SD_or (Or_left _)) -> stmt_aux env s_t
-            | E (SD_or (Or_right _)) -> stmt_aux env s_f
+            | E (SD_or (Or_left _)) -> stmt_aux s env s_t
+            | E (SD_or (Or_right _)) -> stmt_aux s env s_f
             | _ ->
                 Debug.amf [%here] "type error";
                 raise Type_error)
         | S_if_cons (c, s_t, s_f) -> (
             match find c with
-            | E (SD_list L_nil) -> stmt_aux env s_f
-            | E (SD_list (L_cons _)) -> stmt_aux env s_t
+            | E (SD_list L_nil) -> stmt_aux s env s_f
+            | E (SD_list (L_cons _)) -> stmt_aux s env s_t
             | _ ->
                 Debug.amf [%here] "type error";
                 raise Type_error)
         | S_loop (c, b) -> (
             match find c with
-            | E (SD_bool (Bool true)) -> stmt_aux (stmt_aux env b) s
-            | E (SD_bool (Bool false)) -> env
+            | E (SD_bool (Bool true)) ->
+                let r, s' = stmt_aux s env b in
+                if s' <> 0 then stmt_aux (s' - 1) r stmt else (Timeout, s')
+            | E (SD_bool (Bool false)) -> (env, s)
             | _ ->
                 Debug.amf [%here] "type error";
                 raise Type_error)
         | S_loop_left (c, b) -> (
             match find c with
-            | E (SD_or (Or_left _)) -> stmt_aux (stmt_aux env b) s
-            | E (SD_or (Or_right _)) -> env
+            | E (SD_or (Or_left _)) ->
+                let r, s' = stmt_aux s env b in
+                if s' <> 0 then stmt_aux (s' - 1) r stmt else (Timeout, s')
+            | E (SD_or (Or_right _)) -> (env, s)
             | _ ->
                 Debug.amf [%here] "type error";
                 raise Type_error)
         | S_map (c, b) -> (
             match find c with
-            | E (SD_list L_nil) -> env
-            | E (SD_list _) -> stmt_aux (stmt_aux env b) s
+            | E (SD_list L_nil) -> (env, s)
+            | E (SD_list _) ->
+                let r, s' = stmt_aux s env b in
+                if s' <> 0 then stmt_aux (s' - 1) r stmt else (Timeout, s')
             | _ ->
                 Debug.amf [%here] "type error";
                 raise Type_error)
         | S_iter (c, b) -> (
             match find c with
-            | E (SD_list L_nil) -> env
-            | E (SD_list _) -> stmt_aux (stmt_aux env b) s
+            | E (SD_list L_nil) -> (env, s)
+            | E (SD_list _) ->
+                let r, s' = stmt_aux s env b in
+                if s' <> 0 then stmt_aux (s' - 1) r stmt else (Timeout, s')
             | _ ->
                 Debug.amf [%here] "type error";
                 raise Type_error)
-        | S_failwith _ -> Failed
-        | S_return v -> raise (Return (find v)))
+        | S_failwith _ -> (Env Failed, s))
   in
-  try
-    let _e = stmt_aux env s in
-    None
-  with Return r -> Some r
 
-let program ctx ((param_t, storage_t, code) : program) =
+  stmt_aux s env stmt
+
+let program s ctx (p : program) =
   let initial_env =
-    Ok
-      (Var.Map.set Var.Map.empty
-         ~key:
-           {
-             var_name = "parameter_storage";
-             var_type = T_pair (param_t, storage_t);
-           }
-         ~data:(E (SD_pair (ctx.ctx_param, ctx.ctx_storage))))
+    Env
+      (Ok
+         (Var.Map.set Var.Map.empty
+            ~key:
+              {
+                var_name = "parameter_storage";
+                var_type = T_pair (p.param_t, p.storage_t);
+              }
+            ~data:(E (SD_pair (ctx.ctx_param, ctx.ctx_storage)))))
   in
-  stmt ctx initial_env code
+  let env, _ = stmt s ctx initial_env p.code in
+  match (env, p.return) with
+  | Env Failed, None -> None
+  | Env (Ok env), Some v -> Some (Map.find_exn env v)
+  | _ -> assert false

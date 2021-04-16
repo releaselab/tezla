@@ -93,7 +93,13 @@ and expr =
   | E_isnat of var
   | E_int_of_nat of var
   | E_chain_id
-  | E_lambda of typ * typ * var * stmt
+  | E_lambda of {
+      lambda_param_t : typ;
+      lambda_return_t : typ;
+      lambda_param : var;
+      lambda_stmt : stmt;
+      lambda_return : var option;
+    }
   | E_exec of var * var
   | E_dup of var
   | E_nil of typ
@@ -123,11 +129,15 @@ and stmt_t =
   | S_map of var * stmt
   | S_iter of var * stmt
   | S_failwith of var
-  | S_return of var
 
 and stmt = { id : int; stm : stmt_t }
 
-and program = typ * typ * stmt
+and program = {
+  param_t : typ;
+  storage_t : typ;
+  code : stmt;
+  return : var option;
+}
 
 let compare_stmt s_1 s_2 = Int.compare s_1.id s_2.id
 
@@ -224,8 +234,10 @@ module Expr = struct
     | E_isnat e -> [%string "ISNAT %{e#Var}"]
     | E_int_of_nat e -> [%string "INT %{e#Var}"]
     | E_chain_id -> "CHAIN_ID"
-    | E_lambda (t_1, t_2, v, _) ->
-        [%string "LAMBDA %{t_1#Typ} %{t_2#Typ} (%{v#Var} => { ... })"]
+    | E_lambda lambda ->
+        [%string
+          "LAMBDA %{lambda.lambda_param_t#Typ} %{lambda.lambda_return_t#Typ} \
+           (%{lambda.lambda_param#Var} => { ... })"]
     | E_exec (v_1, v_2) -> [%string "EXEC %{v_1#Var} %{v_2#Var}"]
     | E_contract_of_address (t, v) -> [%string "CONTRACT %{t#Typ} %{v#Var}"]
     | E_create_contract_address (_, v_1, v_2, v_3) ->
@@ -280,6 +292,4 @@ let rec simpl s =
   | S_loop_left (c, s) -> { s with stm = S_loop_left (c, simpl s) }
   | S_iter (c, s) -> { s with stm = S_iter (c, simpl s) }
   | S_map (x, s) -> { s with stm = S_map (x, simpl s) }
-  | S_skip | S_swap | S_dig | S_dug | S_assign _ | S_drop _ | S_failwith _
-  | S_return _ ->
-      s
+  | S_skip | S_swap | S_dig | S_dug | S_assign _ | S_drop _ | S_failwith _ -> s

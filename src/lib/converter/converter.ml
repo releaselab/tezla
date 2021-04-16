@@ -696,14 +696,21 @@ and inst_to_stmt counter env
         let t_2 = convert_typ t_2 in
         let param = Var.{ var_name = next_var (); var_type = t_1 } in
         let b, lambda_env = inst_to_stmt counter (push param empty_env) i in
-        let b =
+        let r =
           match lambda_env with
-          | Failed -> b
-          | Stack _ ->
-              let r = peek lambda_env in
-              create_stmt (S_seq (b, create_stmt (S_return r)))
+          | Failed -> None
+          | Stack _ -> Some (peek lambda_env)
         in
-        let e = E_lambda (t_1, t_2, param, b) in
+        let e =
+          E_lambda
+            {
+              lambda_param_t = t_1;
+              lambda_return_t = t_2;
+              lambda_param = param;
+              lambda_stmt = b;
+              lambda_return = r;
+            }
+        in
         let v, assign = create_assign_annot_1 e in
         (assign, push v env)
     | I_exec ->
@@ -1012,8 +1019,7 @@ and convert_program counter Michelson.Carthage.Adt.{ param; code; storage } =
   let code, env = inst_to_stmt counter env code in
   let code = Adt.simpl code in
   match env with
-  | Failed -> (param, storage, code)
+  | Failed -> { Adt.param_t = param; storage_t = storage; code; return = None }
   | Stack _ ->
       let v = Env.peek env in
-      let i = Adt.create_stmt (S_return v) in
-      (param, storage, Adt.create_stmt (S_seq (code, i)))
+      { Adt.param_t = param; storage_t = storage; code; return = Some v }
