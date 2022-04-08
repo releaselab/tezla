@@ -1,4 +1,4 @@
-open Core_kernel
+open Core
 open Env
 
 let join_loop env_before env_after body =
@@ -109,9 +109,9 @@ let lambda_t t =
       in
       assert false
 
-let rec assert_type d t =
-  let open Michelson.Carthage.Adt in
-  match (d.value, t.value) with
+let rec assert_type (_, d) (_, t, _) =
+  let open Carthage_adt.Adt in
+  match (d, t) with
   | D_int _, (T_int | T_nat | T_mutez | T_timestamp)
   | D_unit, T_unit
   | D_none, T_option _
@@ -134,67 +134,63 @@ let rec assert_type d t =
         | D_elt (d_k, d_v) -> assert_type d_k k && assert_type d_v v
         | _ -> false
       in
-      List.for_all ~f:(fun d' -> assert_type_map d'.value k v) l
+      List.for_all ~f:(fun (_, d') -> assert_type_map d' k v) l
   | D_instruction _, T_lambda _ -> true
   | _ -> false
 
-let rec convert_typ t =
+let rec convert_typ (_, t, _) =
   let open Adt.Typ in
-  match t.Michelson.Carthage.Adt.value with
-  | Michelson.Carthage.Adt.T_address -> T_address
-  | Michelson.Carthage.Adt.T_key -> T_key
-  | Michelson.Carthage.Adt.T_unit -> T_unit
-  | Michelson.Carthage.Adt.T_signature -> T_signature
-  | Michelson.Carthage.Adt.T_operation -> T_operation
-  | Michelson.Carthage.Adt.T_chain_id -> T_chain_id
-  | Michelson.Carthage.Adt.T_int -> T_int
-  | Michelson.Carthage.Adt.T_nat -> T_nat
-  | Michelson.Carthage.Adt.T_string -> T_string
-  | Michelson.Carthage.Adt.T_bytes -> T_bytes
-  | Michelson.Carthage.Adt.T_mutez -> T_mutez
-  | Michelson.Carthage.Adt.T_bool -> T_bool
-  | Michelson.Carthage.Adt.T_key_hash -> T_key_hash
-  | Michelson.Carthage.Adt.T_timestamp -> T_timestamp
-  | Michelson.Carthage.Adt.T_option t -> T_option (convert_typ t)
-  | Michelson.Carthage.Adt.T_list t -> T_list (convert_typ t)
-  | Michelson.Carthage.Adt.T_set t -> T_set (convert_typ t)
-  | Michelson.Carthage.Adt.T_contract t -> T_contract (convert_typ t)
-  | Michelson.Carthage.Adt.T_pair (t_1, t_2) ->
+  match t with
+  | Carthage_adt.Adt.T_address -> T_address
+  | Carthage_adt.Adt.T_key -> T_key
+  | Carthage_adt.Adt.T_unit -> T_unit
+  | Carthage_adt.Adt.T_signature -> T_signature
+  | Carthage_adt.Adt.T_operation -> T_operation
+  | Carthage_adt.Adt.T_chain_id -> T_chain_id
+  | Carthage_adt.Adt.T_int -> T_int
+  | Carthage_adt.Adt.T_nat -> T_nat
+  | Carthage_adt.Adt.T_string -> T_string
+  | Carthage_adt.Adt.T_bytes -> T_bytes
+  | Carthage_adt.Adt.T_mutez -> T_mutez
+  | Carthage_adt.Adt.T_bool -> T_bool
+  | Carthage_adt.Adt.T_key_hash -> T_key_hash
+  | Carthage_adt.Adt.T_timestamp -> T_timestamp
+  | Carthage_adt.Adt.T_option t -> T_option (convert_typ t)
+  | Carthage_adt.Adt.T_list t -> T_list (convert_typ t)
+  | Carthage_adt.Adt.T_set t -> T_set (convert_typ t)
+  | Carthage_adt.Adt.T_contract t -> T_contract (convert_typ t)
+  | Carthage_adt.Adt.T_pair (t_1, t_2) ->
       T_pair (convert_typ t_1, convert_typ t_2)
-  | Michelson.Carthage.Adt.T_or (t_1, t_2) ->
-      T_or (convert_typ t_1, convert_typ t_2)
-  | Michelson.Carthage.Adt.T_lambda (t_1, t_2) ->
+  | Carthage_adt.Adt.T_or (t_1, t_2) -> T_or (convert_typ t_1, convert_typ t_2)
+  | Carthage_adt.Adt.T_lambda (t_1, t_2) ->
       T_lambda (convert_typ t_1, convert_typ t_2)
-  | Michelson.Carthage.Adt.T_map (t_1, t_2) ->
-      T_map (convert_typ t_1, convert_typ t_2)
-  | Michelson.Carthage.Adt.T_big_map (t_1, t_2) ->
+  | Carthage_adt.Adt.T_map (t_1, t_2) -> T_map (convert_typ t_1, convert_typ t_2)
+  | Carthage_adt.Adt.T_big_map (t_1, t_2) ->
       T_big_map (convert_typ t_1, convert_typ t_2)
 
 let rec convert_data counter =
   let open Adt in
   let open Adt.Typ in
-  let rec convert_data t d =
+  let rec convert_data t (_, d) =
     let d =
-      match (t, d.Michelson.Carthage.Adt.value) with
-      | _, Michelson.Carthage.Adt.D_int n -> D_int n
-      | _, Michelson.Carthage.Adt.D_unit -> D_unit
-      | _, Michelson.Carthage.Adt.D_none -> D_none
-      | _, Michelson.Carthage.Adt.D_string s -> D_string s
-      | _, Michelson.Carthage.Adt.D_bytes b -> D_bytes b
-      | _, Michelson.Carthage.Adt.D_bool b -> D_bool b
-      | T_pair (t_1, t_2), Michelson.Carthage.Adt.D_pair (d_1, d_2) ->
+      match (t, d) with
+      | _, Carthage_adt.Adt.D_int n -> D_int n
+      | _, Carthage_adt.Adt.D_unit -> D_unit
+      | _, Carthage_adt.Adt.D_none -> D_none
+      | _, Carthage_adt.Adt.D_string s -> D_string s
+      | _, Carthage_adt.Adt.D_bytes b -> D_bytes b
+      | _, Carthage_adt.Adt.D_bool b -> D_bool b
+      | T_pair (t_1, t_2), Carthage_adt.Adt.D_pair (d_1, d_2) ->
           D_pair (convert_data t_1 d_1, convert_data t_2 d_2)
-      | T_or (t, _), Michelson.Carthage.Adt.D_left d ->
-          D_left (convert_data t d)
-      | T_or (_, t), Michelson.Carthage.Adt.D_right d ->
-          D_right (convert_data t d)
-      | T_option t, Michelson.Carthage.Adt.D_some d -> D_some (convert_data t d)
-      | (T_list t | T_set t), Michelson.Carthage.Adt.D_list d_l ->
+      | T_or (t, _), Carthage_adt.Adt.D_left d -> D_left (convert_data t d)
+      | T_or (_, t), Carthage_adt.Adt.D_right d -> D_right (convert_data t d)
+      | T_option t, Carthage_adt.Adt.D_some d -> D_some (convert_data t d)
+      | (T_list t | T_set t), Carthage_adt.Adt.D_list d_l ->
           D_list (List.map ~f:(convert_data t) d_l)
-      | ( (T_map (t_1, t_2) | T_big_map (t_1, t_2)),
-          Michelson.Carthage.Adt.D_list d_l ) ->
+      | (T_map (t_1, t_2) | T_big_map (t_1, t_2)), Carthage_adt.Adt.D_list d_l
+        ->
           D_list (List.map ~f:(convert_data_elt t_1 t_2) d_l)
-      | T_lambda (t, _), Michelson.Carthage.Adt.D_instruction i ->
+      | T_lambda (t, _), Carthage_adt.Adt.D_instruction i ->
           let param = Var.{ var_name = next_var counter; var_type = t } in
           let env = Env.push param Env.empty_env in
           let i, _ = inst_to_stmt (ref (-1)) env i in
@@ -202,17 +198,17 @@ let rec convert_data counter =
       | _ -> assert false
     in
     Data.create d
-  and convert_data_elt t_1 t_2 d =
+  and convert_data_elt t_1 t_2 (_, d) =
     let open Adt in
-    match d.value with
-    | Michelson.Carthage.Adt.D_elt (d_1, d_2) ->
+    match d with
+    | Carthage_adt.Adt.D_elt (d_1, d_2) ->
         Data.create (D_elt (convert_data t_1 d_1, convert_data t_2 d_2))
     | _ -> assert false
   in
   convert_data
 
-and inst_to_stmt counter env (i : Michelson.Carthage.Adt.inst) =
-  let open Michelson.Carthage.Adt in
+and inst_to_stmt counter env ((loc, i, annots) : (_, _) Carthage_adt.Adt.inst) =
+  let open Carthage_adt.Adt in
   let open Adt in
   let loop_n f =
     let rec loop acc n =
@@ -228,9 +224,10 @@ and inst_to_stmt counter env (i : Michelson.Carthage.Adt.inst) =
     let v = Var.{ var_name; var_type } in
     (v, Stmt.create (S_assign (v, e)))
   in
+  let open Common_adt.Annot in
   let create_assign_annot_1 e =
     let annots =
-      List.filter ~f:(function A_var _ -> true | _ -> false) i.annots
+      List.filter ~f:(function A_var _ -> true | _ -> false) annots
     in
     match annots with
     | A_var var_name :: _ -> create_assign ~var_name e
@@ -238,14 +235,14 @@ and inst_to_stmt counter env (i : Michelson.Carthage.Adt.inst) =
   in
   let create_assign_annot_2 e =
     let annots =
-      List.filter ~f:(function A_var _ -> true | _ -> false) i.annots
+      List.filter ~f:(function A_var _ -> true | _ -> false) annots
     in
     match annots with
     | _ :: A_var var_name :: _ -> create_assign ~var_name e
     | _ -> create_assign e
   in
   try
-    match i.value with
+    match i with
     | I_failwith ->
         let x, _ = pop env in
         (Stmt.create (S_failwith x), Failed)
@@ -836,24 +833,24 @@ and inst_to_stmt counter env (i : Michelson.Carthage.Adt.inst) =
   | Functional_stack.Unsufficient_length ->
       failwith
         (Printf.sprintf "Unsufficent_length: Line %d, columns %d-%d\n"
-           i.loc.start_pos.lin i.loc.start_pos.col i.loc.end_pos.col)
+           loc.start_pos.lin loc.start_pos.col loc.end_pos.col)
   | Typer.Type_error e ->
       failwith
         (Printf.sprintf "Type error: %s, Line %d, columns %d-%d\n" e
-           i.loc.start_pos.lin i.loc.start_pos.col i.loc.end_pos.col)
+           loc.start_pos.lin loc.start_pos.col loc.end_pos.col)
   | Assert_failure (f, lin, col) ->
       failwith
         (Printf.sprintf
            "Assert failure on %s:%d:%d\n\
             Michelson file, Line %d, columns %d-%d\n"
-           f lin col i.loc.start_pos.lin i.loc.start_pos.col i.loc.end_pos.col)
+           f lin col loc.start_pos.lin loc.start_pos.col loc.end_pos.col)
   | Invalid_argument s ->
       failwith
         (Printf.sprintf
            "Invalid arguement: %s\nMichelson file, Line %d, columns %d-%d\n" s
-           i.loc.start_pos.lin i.loc.start_pos.col i.loc.end_pos.col)
+           loc.start_pos.lin loc.start_pos.col loc.end_pos.col)
 
-and convert_program counter Michelson.Carthage.Adt.{ param; code; storage } =
+and convert_program counter Carthage_adt.Adt.{ param; code; storage } =
   let param = convert_typ param in
   let storage = convert_typ storage in
   (* let code = inst_strip_location code in *)

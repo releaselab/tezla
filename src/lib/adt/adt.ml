@@ -1,12 +1,10 @@
-open Core_kernel
+open Core
 module Var = Var
 module Typ = Typ
 module Operation = Operation
 
 type var = Var.t [@@deriving ord, sexp]
-
 type typ = Typ.t [@@deriving ord, sexp]
-
 type operation = Operation.t [@@deriving ord, sexp]
 
 module Node = struct
@@ -19,7 +17,6 @@ end
 
 module Id () = struct
   let create_id_counter () = ref (-1)
-
   let id_counter = create_id_counter ()
 
   let next_id () =
@@ -29,32 +26,26 @@ end
 
 module type Common = sig
   type t'
-
   type t = t' Node.t
 
   val create : t' -> t
-
   val to_string : t -> string
 
   include Sexpable.S with type t := t
-
   include Comparable.S with type t := t
 end
 
 module Make_common (T : sig
   type t'
-
   type t = t' Node.t [@@deriving ord, sexp]
 
   val to_string : t -> string
 end) : Common with type t' = T.t' and type t = T.t = struct
   include T
   include Comparable.Make (T)
-
   include Id ()
 
   let create = Node.make ~id:(next_id ())
-
   let to_string = T.to_string
 end
 
@@ -131,7 +122,10 @@ and expr_t =
   | E_sender
   | E_address_of_contract of var
   | E_create_contract_address of
-      Michelson.Carthage.Adt.program * var * var * var
+      (Common_adt.Loc.t, Common_adt.Annot.t list) Carthage_adt.Adt.program
+      * var
+      * var
+      * var
   | E_unlift_option of var
   | E_unlift_or_left of var
   | E_unlift_or_right of var
@@ -177,12 +171,10 @@ and stmt_t =
 [@@deriving ord, sexp]
 
 and stmt = stmt_t Node.t [@@deriving ord, sexp]
-
 and program = typ * typ * stmt [@@deriving ord, sexp]
 
 module Data = Make_common (struct
   type t' = data_t
-
   type t = data [@@deriving ord, sexp]
 
   let rec to_string d =
@@ -204,7 +196,6 @@ end)
 
 module Expr = Make_common (struct
   type t' = expr_t
-
   type t = expr [@@deriving ord, sexp]
 
   let to_string e =
@@ -294,7 +285,6 @@ end)
 module Stmt = struct
   module T = struct
     type t' = stmt_t
-
     type t = stmt [@@deriving ord, sexp]
 
     let to_string s = Int.to_string s.Node.id

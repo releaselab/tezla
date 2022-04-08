@@ -25,6 +25,9 @@
   (bisect_ppx :with-test)
   (ppx_inline_test :dev)
   (alcotest :with-test)
-  zarith
-  core_kernel
-  michelson))
+  (core_unix :with-test)
+  (core
+   (>= v0.15.0))
+  bignum
+  michelson-adt
+  michelson-parser))

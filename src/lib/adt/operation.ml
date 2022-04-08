@@ -1,10 +1,14 @@
-open Core_kernel
+open Core
 
 type var = Var.t [@@deriving ord, sexp]
 
 module T = struct
   type t =
-    | O_create_contract of Michelson.Carthage.Adt.program * var * var * var
+    | O_create_contract of
+        (Common_adt.Loc.t, Common_adt.Annot.t list) Carthage_adt.Adt.program
+        * var
+        * var
+        * var
     | O_transfer_tokens of var * var * var
     | O_set_delegate of var
     | O_create_account of var * var * var * var

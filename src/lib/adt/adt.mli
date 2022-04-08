@@ -1,12 +1,10 @@
-open Core_kernel
+open Core
 module Var = Var
 module Typ = Typ
 module Operation = Operation
 
 type var = Var.t
-
 type typ = Typ.t
-
 type operation = Operation.t
 
 module Node : sig
@@ -90,7 +88,10 @@ and expr_t =
   | E_sender
   | E_address_of_contract of var
   | E_create_contract_address of
-      Michelson.Carthage.Adt.program * var * var * var
+      (Common_adt.Loc.t, Common_adt.Annot.t list) Carthage_adt.Adt.program
+      * var
+      * var
+      * var
   | E_unlift_option of var
   | E_unlift_or_left of var
   | E_unlift_or_right of var
@@ -136,25 +137,20 @@ and stmt_t =
 [@@deriving ord, sexp]
 
 and stmt = stmt_t Node.t [@@deriving ord, sexp]
-
 and program = typ * typ * stmt [@@deriving ord, sexp]
 
 module type Common = sig
   type t'
-
   type t = t' Node.t
 
   val create : t' -> t
-
   val to_string : t -> string
 
   include Sexpable.S with type t := t
-
   include Comparable.S with type t := t
 end
 
 module Data : Common with type t' = data_t and type t = data
-
 module Expr : Common with type t' = expr_t and type t = expr
 
 module Stmt : sig

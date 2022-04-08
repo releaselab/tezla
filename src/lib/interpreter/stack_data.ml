@@ -1,8 +1,7 @@
-open Core_kernel
+open Core
 open Adt
 
 exception Type_error
-
 exception Non_pushable_type
 
 type t_key_hash = Key_hash of string
@@ -16,29 +15,17 @@ and 'a t_contract =
   | Contract_key_hash of t_key_hash
 
 type t_bool = Bool of bool
-
 type t_bytes = Bytes of bytes
-
 type t_chain_id = Chain_id of bytes
-
 type t_int = Int of Bigint.t
-
 type t_key = Key of string
-
 type (_, _) t_lambda = Lambda of stmt
-
 type t_mutez = Mutez of Int64.t
-
 type t_nat = Nat of Bigint.t
-
 type t_operation = Operation of operation
-
 type t_signature = Signature of string
-
 type t_string = String of string
-
 type t_timestamp = Timestamp of Bigint.t
-
 type t_unit = Unit
 
 type ('a, 'b) t_pair = 'a t * 'b t

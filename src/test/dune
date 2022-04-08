@@ -1,4 +1,4 @@
 (tests
  (names test)
- (libraries michelson tezla alcotest)
+ (libraries michelson-parser.carthage tezla alcotest core core_unix.sys_unix)
  (modes byte))

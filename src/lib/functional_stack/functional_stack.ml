@@ -1,15 +1,13 @@
-open Core_kernel
+open Core
 
 type 'a t = 'a list
 
 exception Unsufficient_length
 
 let empty = []
-
 let push = List.cons
 
 let%test "push empty" = List.equal Int.equal (push 1 []) [ 1 ]
-
 let%test "push" = List.equal Int.equal (push 2 [ 1 ]) [ 2; 1 ]
 
 let pop = function [] -> raise Unsufficient_length | hd :: tl -> (hd, tl)
@@ -108,7 +106,6 @@ let%test "dug invalid length" =
   with Unsufficient_length -> true
 
 let%test "dug 0" = List.equal Int.equal (dug [ 1 ] Bigint.zero) [ 1 ]
-
 let%test "dug 1" = List.equal Int.equal (dug [ 1; 2; 3 ] Bigint.one) [ 2; 1; 3 ]
 
 let%test "dug 2" =

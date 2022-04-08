@@ -1,4 +1,4 @@
-open Core_kernel
+open Core
 
 type t =
   | T_key
@@ -26,7 +26,6 @@ type t =
   | T_address
 
 include Comparable.S with type t := t
-
 include Sexpable.S with type t := t
 
 val to_string : t -> string

@@ -11,9 +11,11 @@ depends: [
   "bisect_ppx" {with-test}
   "ppx_inline_test" {dev}
   "alcotest" {with-test}
-  "zarith"
-  "core_kernel"
-  "michelson"
+  "core_unix" {with-test}
+  "core" {>= "v0.15.0"}
+  "bignum"
+  "michelson-adt"
+  "michelson-parser"
   "odoc" {with-doc}
 ]
 build: [
@@ -32,5 +34,6 @@ build: [
 ]
 dev-repo: "git+https://gitlab.com/releaselab/fresco/tezla.git"
 pin-depends: [
-    "michelson.dev" "git+https://gitlab.com/releaselab/fresco/michelson.git"
+    ["michelson-adt.dev" "git+https://github.com/releaselab/michelson-adt.git"]
+    ["michelson-parser.dev" "git+https://github.com/releaselab/michelson-parser.git"]
 ]

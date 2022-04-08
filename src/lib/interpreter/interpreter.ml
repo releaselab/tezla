@@ -1,18 +1,14 @@
-open Core_kernel
+open Core
 open Adt
 open Stack_data
 module Stack_data = Stack_data
 
 exception Type_error
-
 exception Cast_error
-
 exception Runtime_error of string
 
 type 'a or_failed = Ok of 'a | Failed
-
 type e_t = E : 'a t -> e_t
-
 type env = e_t Var.Map.t or_failed
 
 type ('param, 'storage) context = {
